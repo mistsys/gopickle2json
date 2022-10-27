@@ -10,10 +10,5 @@ type String string
 
 func (s String) JSON() string {
 	// escape the string if needed
-	for _, r := range s {
-		if r >= 0x80 || r == '"' || r == '\'' || r < ' ' {
-			return fmt.Sprintf("%q", string(s)) // TODO check that upper unicode chars are ok
-		}
-	}
-	return string(s)
+	return fmt.Sprintf("\"%q\"", string(s)) // TODO check that upper unicode chars are ok
 }
