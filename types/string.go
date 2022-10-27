@@ -10,5 +10,5 @@ type String string
 
 func (s String) JSON() string {
 	// escape the string if needed
-	return fmt.Sprintf("\"%q\"", string(s)) // TODO check that upper unicode chars are ok
+	return fmt.Sprintf("%q", string(s)) // TODO check that upper unicode chars are ok
 }
