@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### forked - 2022-10-27
+- forked from nlpodyssey/gopickle (or really, a child of that, nsd20463/gopickle
+  b/c I wanted the improvements there)
+
 ## [0.1.0] - 2021-01-06
 ### Added
 - More and better documentation

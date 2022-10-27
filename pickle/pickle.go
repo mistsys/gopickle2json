@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nlpodyssey/gopickle/types"
+	"github.com/mistsys/gopickle2json/types"
 )
 
 const HighestProtocol byte = 5

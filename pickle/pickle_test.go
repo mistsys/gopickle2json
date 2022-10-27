@@ -5,10 +5,11 @@
 package pickle
 
 import (
-	"github.com/nlpodyssey/gopickle/types"
 	"math/big"
 	"strings"
 	"testing"
+
+	"github.com/mistsys/gopickle2json/types"
 )
 
 func TestNoneP1(t *testing.T) {
