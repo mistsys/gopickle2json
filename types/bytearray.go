@@ -4,13 +4,15 @@
 
 package types
 
+import "encoding/base64"
+
 // ByteArray represents a Python "bytearray" (builtin type).
 type ByteArray []byte
 
 // NewByteArray makes and returns a new empty ByteArray.
-func NewByteArray() *ByteArray {
+func NewByteArray() ByteArray {
 	b := make(ByteArray, 0)
-	return &b
+	return b
 }
 
 // NewByteArrayFromSlice makes and returns a new ByteArray initialized with
@@ -18,19 +20,24 @@ func NewByteArray() *ByteArray {
 //
 // The new ByteArray is a simple type cast of the input slice; the slice is
 // _not_ copied.
-func NewByteArrayFromSlice(slice []byte) *ByteArray {
+func NewByteArrayFromSlice(slice []byte) ByteArray {
 	b := ByteArray(slice)
-	return &b
+	return b
 }
 
 // Get returns the element of the ByteArray at the given index.
 //
 // It panics if the index is out of range.
-func (b *ByteArray) Get(i int) byte {
-	return (*b)[i]
+func (b ByteArray) Get(i int) byte {
+	return b[i]
 }
 
 // Len returns the length of the ByteArray.
-func (b *ByteArray) Len() int {
-	return len(*b)
+func (b ByteArray) Len() int {
+	return len(b)
+}
+
+func (b ByteArray) JSON() string {
+	// JSON expresses bytes as base-64 encoded strings
+	return base64.StdEncoding.EncodeToString([]byte(b))
 }

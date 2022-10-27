@@ -9,8 +9,9 @@ import "fmt"
 type ObjectClass struct{}
 
 var _ PyNewable = &ObjectClass{}
+var _ PyNewable = &ObjectClass{}
 
-func (o *ObjectClass) PyNew(args ...interface{}) (interface{}, error) {
+func (o *ObjectClass) PyNew(args ...Object) (Object, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("ObjectClass.PyNew called with no arguments")
 	}
@@ -21,4 +22,8 @@ func (o *ObjectClass) PyNew(args ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf(
 			"ObjectClass.PyNew unprocessable args: %#v", args)
 	}
+}
+
+func (o *ObjectClass) JSON() string {
+	panic("can't JSON serialize a ObjectClass")
 }

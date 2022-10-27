@@ -7,6 +7,7 @@ package types
 import (
 	"container/list"
 	"fmt"
+	"strings"
 )
 
 // OrderedDictClass represent Python "collections.OrderedDict" class.
@@ -20,12 +21,16 @@ var _ Callable = &OrderedDictClass{}
 // constructor "collections.OrderedDict()".
 //
 // No arguments are supported.
-func (*OrderedDictClass) Call(args ...interface{}) (interface{}, error) {
+func (*OrderedDictClass) Call(args ...Object) (Object, error) {
 	if len(args) != 0 {
 		return nil, fmt.Errorf(
 			"OrderedDictClass.Call args not supported: %#v", args)
 	}
 	return NewOrderedDict(), nil
+}
+
+func (*OrderedDictClass) JSON() string {
+	panic("cannot serialize OrderedDictClass to JSON")
 }
 
 // OrderedDict is a minimal and trivial implementation of an ordered map,
@@ -37,7 +42,7 @@ func (*OrderedDictClass) Call(args ...interface{}) (interface{}, error) {
 type OrderedDict struct {
 	// Map associates a key of any type (interface{}) to OrderedDictEntry
 	// pointer values. These values are shared with List.
-	Map map[interface{}]*OrderedDictEntry
+	Map map[Object]*OrderedDictEntry
 	// List is an ordered list of OrderedDictEntry pointers, which are
 	// also shared with Map.
 	List *list.List
@@ -54,9 +59,9 @@ var _ PyDictSettable = &OrderedDict{}
 // and List.
 type OrderedDictEntry struct {
 	// Key of a single OrderedDict's entry.
-	Key interface{}
+	Key Object
 	// Value of a single OrderedDict's entry.
-	Value interface{}
+	Value Object
 	// ListElement is a pointer to the OrderedDict's List Element which
 	// contains this very OrderedDictEntry.
 	ListElement *list.Element
@@ -65,7 +70,7 @@ type OrderedDictEntry struct {
 // NewOrderedDict makes and returns a new empty OrderedDict.
 func NewOrderedDict() *OrderedDict {
 	return &OrderedDict{
-		Map:    make(map[interface{}]*OrderedDictEntry),
+		Map:    make(map[Object]*OrderedDictEntry),
 		List:   list.New(),
 		PyDict: make(map[string]interface{}),
 	}
@@ -75,7 +80,7 @@ func NewOrderedDict() *OrderedDict {
 // exist yet, the new pair is positioned at the end (back) of the OrderedDict.
 // If the key already exists, the existing associated value is replaced with the
 // new one, and the original position is maintained.
-func (o *OrderedDict) Set(k, v interface{}) {
+func (o *OrderedDict) Set(k, v Object) {
 	if entry, ok := o.Map[k]; ok {
 		entry.Value = v
 		return
@@ -91,7 +96,7 @@ func (o *OrderedDict) Set(k, v interface{}) {
 
 // Get returns the value associated with the given key (if any), and whether
 // the key is present or not.
-func (o *OrderedDict) Get(k interface{}) (interface{}, bool) {
+func (o *OrderedDict) Get(k Object) (Object, bool) {
 	entry, ok := o.Map[k]
 	if !ok {
 		return nil, false
@@ -101,7 +106,7 @@ func (o *OrderedDict) Get(k interface{}) (interface{}, bool) {
 
 // MustGet returns the value associated with the given key, if if it exists,
 // otherwise it panics.
-func (o *OrderedDict) MustGet(key interface{}) interface{} {
+func (o *OrderedDict) MustGet(key Object) Object {
 	value, ok := o.Get(key)
 	if !ok {
 		panic(fmt.Errorf("key not found in OrderedDict: %#v", key))
@@ -117,12 +122,28 @@ func (o *OrderedDict) Len() int {
 
 // PyDictSet mimics the setting of a key/value pair on Python "__dict__"
 // attribute of the OrderedDict.
-func (o *OrderedDict) PyDictSet(key, value interface{}) error {
-	sKey, keyOk := key.(string)
+func (o *OrderedDict) PyDictSet(key, value Object) error {
+	sKey, keyOk := key.(String)
 	if !keyOk {
 		return fmt.Errorf(
 			"OrderedDict.PyDictSet() requires string key: %#v", key)
 	}
-	o.PyDict[sKey] = value
+	o.PyDict[string(sKey)] = value
 	return nil
+}
+
+func (o *OrderedDict) JSON() string {
+	var b strings.Builder
+	b.WriteByte('{')
+	for e := o.List.Front(); e != nil; e = e.Next() {
+		if b.Len() != 1 {
+			b.WriteByte(',')
+		}
+		entry := e.Value.(*OrderedDictEntry)
+		b.WriteString(entry.Key.JSON())
+		b.WriteByte(':')
+		b.WriteString(entry.Value.JSON())
+	}
+	b.WriteByte('}')
+	return b.String()
 }

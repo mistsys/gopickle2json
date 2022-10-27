@@ -10,7 +10,7 @@ type Reconstructor struct{}
 
 var _ Callable = &Reconstructor{}
 
-func (r *Reconstructor) Call(args ...interface{}) (interface{}, error) {
+func (r *Reconstructor) Call(args ...Object) (Object, error) {
 	if len(args) < 2 {
 		return nil, fmt.Errorf("Reconstructor: invalid arguments: %#v", args)
 	}
@@ -22,4 +22,8 @@ func (r *Reconstructor) Call(args ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf(
 			"Reconstructor: unprocessable arguments: %#v", args)
 	}
+}
+
+func (r *Reconstructor) JSON() string {
+	panic("cannot serialize Reconstructor into JSON")
 }

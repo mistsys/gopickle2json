@@ -4,25 +4,38 @@
 
 package types
 
+import (
+	"fmt"
+)
+
 type GenericClass struct {
 	Module string
 	Name   string
 }
 
 var _ PyNewable = &GenericClass{}
+var _ Object = &GenericClass{}
 
 type GenericObject struct {
 	Class           *GenericClass
-	ConstructorArgs []interface{}
+	ConstructorArgs []Object
 }
 
-func NewGenericClass(module, name string) *GenericClass {
-	return &GenericClass{Module: module, Name: name}
+func NewGenericClass(module, name String) *GenericClass {
+	return &GenericClass{Module: string(module), Name: string(name)}
 }
 
-func (g *GenericClass) PyNew(args ...interface{}) (interface{}, error) {
+func (g *GenericClass) PyNew(args ...Object) (Object, error) {
 	return &GenericObject{
 		Class:           g,
 		ConstructorArgs: args,
 	}, nil
+}
+
+func (g *GenericClass) JSON() string {
+	panic(fmt.Sprintf("can't serialize GenericClass(%s.%s) to JSON", g.Module, g.Name))
+}
+
+func (g *GenericObject) JSON() string {
+	panic(fmt.Sprintf("can't serialize GenericObject(%s.%s) to JSON", g.Class.Module, g.Class.Name))
 }

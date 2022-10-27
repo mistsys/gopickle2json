@@ -7,12 +7,14 @@ package types
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // DictSetter is implemented by any value that exhibits a dict-like behaviour,
 // allowing arbitrary key/value pairs to be set.
 type DictSetter interface {
-	Set(key, value interface{})
+	Set(key, value Object)
+	Object
 }
 
 // Dict represents a Python "dict" (builtin type).
@@ -22,8 +24,8 @@ type DictSetter interface {
 type Dict []DictEntry
 
 type DictEntry struct {
-	Key   interface{}
-	Value interface{}
+	Key   Object
+	Value Object
 }
 
 var _ DictSetter = &Dict{}
@@ -35,7 +37,7 @@ func NewDict() *Dict {
 }
 
 // Set sets into the Dict the given key/value pair.
-func (d *Dict) Set(key, value interface{}) {
+func (d *Dict) Set(key, value Object) {
 	*d = append(*d, DictEntry{
 		Key:   key,
 		Value: value,
@@ -44,7 +46,7 @@ func (d *Dict) Set(key, value interface{}) {
 
 // Get returns the value associated with the given key (if any), and whether
 // the key is present or not.
-func (d *Dict) Get(key interface{}) (interface{}, bool) {
+func (d *Dict) Get(key Object) (Object, bool) {
 	for _, entry := range *d {
 		if reflect.DeepEqual(entry.Key, key) {
 			return entry.Value, true
@@ -55,7 +57,7 @@ func (d *Dict) Get(key interface{}) (interface{}, bool) {
 
 // MustGet returns the value associated with the given key, if if it exists,
 // otherwise it panics.
-func (d *Dict) MustGet(key interface{}) interface{} {
+func (d *Dict) MustGet(key Object) Object {
 	value, ok := d.Get(key)
 	if !ok {
 		panic(fmt.Errorf("key not found in Dict: %#v", key))
@@ -67,4 +69,19 @@ func (d *Dict) MustGet(key interface{}) interface{} {
 // contained by the Dict.
 func (d *Dict) Len() int {
 	return len(*d)
+}
+
+func (d *Dict) JSON() string {
+	var b strings.Builder
+	b.WriteByte('{')
+	for i, e := range *d {
+		if i != 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(e.Key.JSON())
+		b.WriteByte(':')
+		b.WriteString(e.Value.JSON())
+	}
+	b.WriteByte('}')
+	return b.String()
 }

@@ -21,7 +21,7 @@ import (
 
 const HighestProtocol byte = 5
 
-func Load(filename string) (interface{}, error) {
+func Load(filename string) (types.Object, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func Load(filename string) (interface{}, error) {
 	return u.Load()
 }
 
-func Loads(s string) (interface{}, error) {
+func Loads(s string) (types.Object, error) {
 	sr := strings.NewReader(s)
 	u := NewUnpickler(sr)
 	return u.Load()
@@ -62,14 +62,14 @@ type Unpickler struct {
 	r              reader
 	proto          byte
 	currentFrame   *bytes.Reader
-	stack          []interface{}
-	metaStack      [][]interface{}
-	memo           map[int]interface{}
-	FindClass      func(module, name string) (interface{}, error)
-	PersistentLoad func(interface{}) (interface{}, error)
-	GetExtension   func(code int) (interface{}, error)
-	NextBuffer     func() (interface{}, error)
-	MakeReadOnly   func(interface{}) (interface{}, error)
+	stack          []types.Object
+	metaStack      [][]types.Object
+	memo           map[int]types.Object
+	FindClass      func(module, name types.String) (types.Object, error)
+	PersistentLoad func(interface{}) (types.Object, error)
+	GetExtension   func(code int) (types.Object, error)
+	NextBuffer     func() (types.Object, error)
+	MakeReadOnly   func(types.Object) (types.Object, error)
 }
 
 func NewUnpickler(ior io.Reader) Unpickler {
@@ -79,13 +79,13 @@ func NewUnpickler(ior io.Reader) Unpickler {
 	}
 	return Unpickler{
 		r:    r,
-		memo: make(map[int]interface{}, 256+128),
+		memo: make(map[int]types.Object, 256+128),
 	}
 }
 
-func (u *Unpickler) Load() (interface{}, error) {
-	u.metaStack = make([][]interface{}, 0, 16)
-	u.stack = make([]interface{}, 0, 16)
+func (u *Unpickler) Load() (types.Object, error) {
+	u.metaStack = make([][]types.Object, 0, 16)
+	u.stack = make([]types.Object, 0, 16)
 	u.proto = 0
 
 	for {
@@ -109,13 +109,13 @@ func (u *Unpickler) Load() (interface{}, error) {
 	}
 }
 
-type pickleStop struct{ value interface{} }
+type pickleStop struct{ value types.Object }
 
 func (p pickleStop) Error() string { return "STOP" }
 
 var _ error = pickleStop{}
 
-func (u *Unpickler) findClass(module, name string) (interface{}, error) {
+func (u *Unpickler) findClass(module, name types.String) (types.Object, error) {
 	switch module {
 	case "collections":
 		switch name {
@@ -236,18 +236,18 @@ func (u *Unpickler) loadFrame(frameSize int) error {
 	return nil
 }
 
-func (u *Unpickler) append(element interface{}) {
+func (u *Unpickler) append(element types.Object) {
 	u.stack = append(u.stack, element)
 }
 
-func (u *Unpickler) stackLast() (interface{}, error) {
+func (u *Unpickler) stackLast() (types.Object, error) {
 	if len(u.stack) == 0 {
 		return nil, fmt.Errorf("the stack is empty")
 	}
 	return u.stack[len(u.stack)-1], nil
 }
 
-func (u *Unpickler) stackPop() (interface{}, error) {
+func (u *Unpickler) stackPop() (types.Object, error) {
 	element, err := u.stackLast()
 	if err != nil {
 		return nil, err
@@ -256,14 +256,14 @@ func (u *Unpickler) stackPop() (interface{}, error) {
 	return element, nil
 }
 
-func (u *Unpickler) metaStackLast() ([]interface{}, error) {
+func (u *Unpickler) metaStackLast() ([]types.Object, error) {
 	if len(u.metaStack) == 0 {
 		return nil, fmt.Errorf("the meta stack is empty")
 	}
 	return u.metaStack[len(u.metaStack)-1], nil
 }
 
-func (u *Unpickler) metaStackPop() ([]interface{}, error) {
+func (u *Unpickler) metaStackPop() ([]types.Object, error) {
 	element, err := u.metaStackLast()
 	if err != nil {
 		return nil, err
@@ -273,7 +273,7 @@ func (u *Unpickler) metaStackPop() ([]interface{}, error) {
 }
 
 // Returns a list of items pushed in the stack after last MARK instruction.
-func (u *Unpickler) popMark() ([]interface{}, error) {
+func (u *Unpickler) popMark() ([]types.Object, error) {
 	items := u.stack
 	newStack, err := u.metaStackPop()
 	if err != nil {
@@ -441,13 +441,13 @@ func loadNone(u *Unpickler) error {
 
 // push False
 func loadFalse(u *Unpickler) error {
-	u.append(false)
+	u.append(types.Bool(false))
 	return nil
 }
 
 // push True
 func loadTrue(u *Unpickler) error {
-	u.append(true)
+	u.append(types.Bool(true))
 	return nil
 }
 
@@ -459,18 +459,18 @@ func loadInt(u *Unpickler) error {
 	}
 	data := string(line[:len(line)-1])
 	if len(data) == 2 && data[0] == '0' && data[1] == '0' {
-		u.append(false)
+		u.append(types.Bool(false))
 		return nil
 	}
 	if len(data) == 2 && data[0] == '0' && data[1] == '1' {
-		u.append(true)
+		u.append(types.Bool(true))
 		return nil
 	}
 	i, err := strconv.Atoi(data)
 	if err != nil {
 		return err
 	}
-	u.append(i)
+	u.append(types.Int(i))
 	return nil
 }
 
@@ -480,7 +480,7 @@ func loadBinInt(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(decodeInt32(buf))
+	u.append(types.Int(decodeInt32(buf)))
 	return nil
 }
 
@@ -490,7 +490,7 @@ func loadBinInt1(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(int(i))
+	u.append(types.Int(int(i)))
 	return nil
 }
 
@@ -500,7 +500,7 @@ func loadBinInt2(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(int(binary.LittleEndian.Uint16(buf)))
+	u.append(types.Int(int(binary.LittleEndian.Uint16(buf))))
 	return nil
 }
 
@@ -526,12 +526,12 @@ func loadLong(u *Unpickler) error {
 			if !ok {
 				return fmt.Errorf("invalid long data")
 			}
-			u.append(bi)
+			u.append((*types.Long)(bi))
 			return nil
 		}
 		return err
 	}
-	u.append(int(i))
+	u.append(types.Int(int(i)))
 	return nil
 }
 
@@ -569,7 +569,7 @@ func loadLong4(u *Unpickler) error {
 	return nil
 }
 
-func decodeLong(bytes []byte) interface{} {
+func decodeLong(bytes []byte) types.Object {
 	msBitSet := bytes[len(bytes)-1]&0x80 != 0
 
 	if len(bytes) > 8 {
@@ -587,7 +587,7 @@ func decodeLong(bytes []byte) interface{} {
 			bi = bi.Add(bi, big.NewInt(1))
 			bi = bi.Neg(bi)
 		}
-		return bi
+		return (*types.Long)(bi)
 	}
 
 	var ux, bitMask uint64
@@ -597,9 +597,9 @@ func decodeLong(bytes []byte) interface{} {
 		bitMask = (bitMask << 8) | 0xFF
 	}
 	if msBitSet {
-		return -(int(^ux&bitMask) + 1)
+		return types.Int(-(int64(^ux&bitMask) + 1))
 	}
-	return int(ux)
+	return types.Int(ux)
 }
 
 // push float object; decimal string argument
@@ -612,7 +612,7 @@ func loadFloat(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(f)
+	u.append(types.Float(f))
 	return nil
 }
 
@@ -622,7 +622,7 @@ func loadBinFloat(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(math.Float64frombits(binary.BigEndian.Uint64(buf)))
+	u.append(types.Float(math.Float64frombits(binary.BigEndian.Uint64(buf))))
 	return nil
 }
 
@@ -639,7 +639,7 @@ func loadString(u *Unpickler) error {
 	}
 	data = data[1 : len(data)-1]
 	// TODO: decode to string with the desired decoder
-	u.append(string(data))
+	u.append(types.String(data))
 	return nil
 }
 
@@ -663,7 +663,7 @@ func loadBinString(u *Unpickler) error {
 		return err
 	}
 	// TODO: decode to string with the desired decoder
-	u.append(string(data))
+	u.append(types.String(data))
 	return nil
 }
 
@@ -678,7 +678,7 @@ func loadBinBytes(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(buf)
+	u.append(types.ByteArray(buf))
 	return nil
 }
 
@@ -688,7 +688,7 @@ func loadUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(string(line[:len(line)-1]))
+	u.append(types.String(line[:len(line)-1]))
 	return nil
 }
 
@@ -703,7 +703,7 @@ func loadBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(string(buf))
+	u.append(types.String(buf))
 	return nil
 }
 
@@ -721,7 +721,7 @@ func loadBinUnicode8(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(string(buf)) // TODO: decode UTF-8?
+	u.append(types.String(buf)) // TODO: decode UTF-8?
 	return nil
 }
 
@@ -739,7 +739,7 @@ func loadBinBytes8(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(buf)
+	u.append(types.ByteArray(buf))
 	return nil
 }
 
@@ -802,7 +802,7 @@ func loadShortBinString(u *Unpickler) error {
 		return err
 	}
 	// TODO: decode to string with the desired decoder
-	u.append(string(data))
+	u.append(types.String(data))
 	return nil
 }
 
@@ -816,7 +816,7 @@ func loadShortBinBytes(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(buf)
+	u.append(types.ByteArray(buf))
 	return nil
 }
 
@@ -830,7 +830,7 @@ func loadShortBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(string(buf))
+	u.append(types.String(buf))
 	return nil
 }
 
@@ -846,7 +846,7 @@ func loadTuple(u *Unpickler) error {
 
 // push empty tuple
 func loadEmptyTuple(u *Unpickler) error {
-	u.append(types.NewTupleFromSlice([]interface{}{}))
+	u.append(types.NewTupleFromSlice([]types.Object{}))
 	return nil
 }
 
@@ -856,7 +856,7 @@ func loadTuple1(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewTupleFromSlice([]interface{}{value}))
+	u.append(types.NewTupleFromSlice([]types.Object{value}))
 	return nil
 }
 
@@ -870,7 +870,7 @@ func loadTuple2(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewTupleFromSlice([]interface{}{first, second}))
+	u.append(types.NewTupleFromSlice([]types.Object{first, second}))
 	return nil
 }
 
@@ -888,7 +888,7 @@ func loadTuple3(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewTupleFromSlice([]interface{}{first, second, third}))
+	u.append(types.NewTupleFromSlice([]types.Object{first, second, third}))
 	return nil
 }
 
@@ -959,7 +959,7 @@ func loadInst(u *Unpickler) error {
 	}
 	name := string(line[0 : len(line)-1])
 
-	class, err := u.findClass(module, name)
+	class, err := u.findClass(types.String(module), types.String(name))
 	if err != nil {
 		return err
 	}
@@ -987,9 +987,9 @@ func loadObj(u *Unpickler) error {
 	return u.instantiate(class, args)
 }
 
-func (u *Unpickler) instantiate(class interface{}, args []interface{}) error {
+func (u *Unpickler) instantiate(class types.Object, args []types.Object) error {
 	var err error
-	var value interface{}
+	var value types.Object
 	switch ct := class.(type) {
 	case types.Callable:
 		value, err = ct.Call(args...)
@@ -1012,7 +1012,7 @@ func loadNewObj(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	argsTuple, argsOk := args.(*types.Tuple)
+	argsTuple, argsOk := args.(types.Tuple)
 	if !argsOk {
 		return fmt.Errorf("NEWOBJ args must be *Tuple")
 	}
@@ -1026,7 +1026,7 @@ func loadNewObj(u *Unpickler) error {
 		return fmt.Errorf("NEWOBJ requires a PyNewable object: %#v", rawClass)
 	}
 
-	result, err := class.PyNew(*argsTuple...)
+	result, err := class.PyNew(argsTuple...)
 	if err != nil {
 		return err
 	}
@@ -1045,7 +1045,7 @@ func loadNewObjEx(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	argsTuple, argsOk := args.(*types.Tuple)
+	argsTuple, argsOk := args.(types.Tuple)
 	if !argsOk {
 		return fmt.Errorf("NEWOBJ_EX args must be *Tuple")
 	}
@@ -1059,7 +1059,7 @@ func loadNewObjEx(u *Unpickler) error {
 		return fmt.Errorf("NEWOBJ_EX requires a PyNewable object")
 	}
 
-	allArgs := []interface{}(*argsTuple)
+	allArgs := []types.Object(argsTuple)
 	allArgs = append(allArgs, kwargs)
 
 	result, err := class.PyNew(allArgs...)
@@ -1084,7 +1084,7 @@ func loadGlobal(u *Unpickler) error {
 	}
 	name := string(line[0 : len(line)-1])
 
-	class, err := u.findClass(module, name)
+	class, err := u.findClass(types.String(module), types.String(name))
 	if err != nil {
 		return err
 	}
@@ -1098,7 +1098,7 @@ func loadStackGlobal(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	name, nameOk := rawName.(string)
+	name, nameOk := rawName.(types.String)
 	if !nameOk {
 		return fmt.Errorf("STACK_GLOBAL requires str name: %#v", rawName)
 	}
@@ -1107,7 +1107,7 @@ func loadStackGlobal(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	module, moduleOk := rawModule.(string)
+	module, moduleOk := rawModule.(types.String)
 	if !moduleOk {
 		return fmt.Errorf("STACK_GLOBAL requires str module: %#v", rawModule)
 	}
@@ -1179,7 +1179,7 @@ func loadReduce(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	argsTuple, argsOk := args.(*types.Tuple)
+	argsTuple, argsOk := args.(types.Tuple)
 	if !argsOk {
 		return fmt.Errorf("REDUCE args must be *Tuple")
 	}
@@ -1193,7 +1193,7 @@ func loadReduce(u *Unpickler) error {
 		return fmt.Errorf("REDUCE requires a Callable object: %#v", function)
 	}
 
-	result, err := callable.Call(*argsTuple...)
+	result, err := callable.Call(argsTuple...)
 	if err != nil {
 		return err
 	}
@@ -1429,8 +1429,8 @@ func loadBuild(u *Unpickler) error {
 		return obj.PySetState(state)
 	}
 
-	var slotState interface{}
-	if tuple, ok := state.(*types.Tuple); ok && tuple.Len() == 2 {
+	var slotState types.Object
+	if tuple, ok := state.(types.Tuple); ok && tuple.Len() == 2 {
 		state = tuple.Get(0)
 		slotState = tuple.Get(1)
 	}
@@ -1455,11 +1455,11 @@ func loadBuild(u *Unpickler) error {
 				"BUILD requires a PyAttrSettable instance: %#v", inst)
 		}
 		for _, entry := range *slotStateDict {
-			sk, keyOk := entry.Key.(string)
+			sk, keyOk := entry.Key.(types.String)
 			if !keyOk {
 				return fmt.Errorf("BUILD requires string slot state keys")
 			}
-			err := instSa.PySetAttr(sk, entry.Value)
+			err := instSa.PySetAttr(string(sk), entry.Value)
 			if err != nil {
 				return err
 			}
@@ -1472,7 +1472,7 @@ func loadBuild(u *Unpickler) error {
 // push special markobject on stack
 func loadMark(u *Unpickler) error {
 	u.metaStack = append(u.metaStack, u.stack)
-	u.stack = make([]interface{}, 0, 16)
+	u.stack = make([]types.Object, 0, 16)
 	return nil
 }
 
