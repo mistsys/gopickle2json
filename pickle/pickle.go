@@ -435,7 +435,7 @@ func loadBinPersId(u *Unpickler) error {
 
 // push None (nil)
 func loadNone(u *Unpickler) error {
-	u.append(nil)
+	u.append(types.None{})
 	return nil
 }
 
