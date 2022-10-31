@@ -32,10 +32,6 @@ func (g *GenericClass) PyNew(args ...Object) (Object, error) {
 	}, nil
 }
 
-func (g *GenericClass) JSON() string {
-	panic(fmt.Sprintf("can't serialize GenericClass(%s.%s) to JSON", g.Module, g.Name))
-}
-
-func (g *GenericObject) JSON() string {
+func (g *GenericObject) String() string {
 	panic(fmt.Sprintf("can't serialize GenericObject(%s.%s) to JSON", g.Class.Module, g.Class.Name))
 }

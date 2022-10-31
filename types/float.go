@@ -6,8 +6,8 @@ package types
 
 import "strconv"
 
-type Float float64
+type Float string
 
-func (f Float) JSON() string {
-	return strconv.FormatFloat(float64(f), 'G', -1, 64)
+func NewFloat(f float64) Float {
+	return Float(strconv.FormatFloat(float64(f), 'G', -1, 64))
 }

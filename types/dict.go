@@ -5,8 +5,6 @@
 package types
 
 import (
-	"fmt"
-	"reflect"
 	"strings"
 )
 
@@ -18,70 +16,28 @@ type DictSetter interface {
 }
 
 // Dict represents a Python "dict" (builtin type).
-//
-// It is implemented as a slice, instead of a map, because in Go not
-// all types can be map's keys (e.g. slices).
-type Dict []DictEntry
-
-type DictEntry struct {
-	Key   Object
-	Value Object
-}
+type Dict strings.Builder
 
 var _ DictSetter = &Dict{}
 
 // NewDict makes and returns a new empty Dict.
 func NewDict() *Dict {
-	d := make(Dict, 0, 4)
-	return &d
+	var d strings.Builder
+	d.WriteByte('{')
+	return (*Dict)(&d)
 }
 
 // Set sets into the Dict the given key/value pair.
 func (d *Dict) Set(key, value Object) {
-	*d = append(*d, DictEntry{
-		Key:   key,
-		Value: value,
-	})
-}
-
-// Get returns the value associated with the given key (if any), and whether
-// the key is present or not.
-func (d *Dict) Get(key Object) (Object, bool) {
-	for _, entry := range *d {
-		if reflect.DeepEqual(entry.Key, key) {
-			return entry.Value, true
-		}
+	b := (*strings.Builder)(d)
+	if b.Len() != 1 {
+		b.WriteByte(',')
 	}
-	return nil, false
+	b.WriteString(toString(key))
+	b.WriteByte(':')
+	b.WriteString(toString(value))
 }
 
-// MustGet returns the value associated with the given key, if if it exists,
-// otherwise it panics.
-func (d *Dict) MustGet(key Object) Object {
-	value, ok := d.Get(key)
-	if !ok {
-		panic(fmt.Errorf("key not found in Dict: %#v", key))
-	}
-	return value
-}
-
-// Len returns the length of the Dict, that is, the amount of key/value pairs
-// contained by the Dict.
-func (d *Dict) Len() int {
-	return len(*d)
-}
-
-func (d *Dict) JSON() string {
-	var b strings.Builder
-	b.WriteByte('{')
-	for i, e := range *d {
-		if i != 0 {
-			b.WriteByte(',')
-		}
-		b.WriteString(e.Key.JSON())
-		b.WriteByte(':')
-		b.WriteString(e.Value.JSON())
-	}
-	b.WriteByte('}')
-	return b.String()
+func (d *Dict) String() string {
+	return (*strings.Builder)(d).String() + "}"
 }

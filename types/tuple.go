@@ -6,24 +6,24 @@ package types
 
 import "strings"
 
+// a Tuple can't immediately be a string because we might have to unpack it to use it as arguments to PyNew() or Call()
 type Tuple []Object
 
 func NewTupleFromSlice(slice []Object) Tuple {
 	return Tuple(slice)
 }
 
-func (t Tuple) Len() int { return len(t) }
-
+func (t Tuple) Len() int         { return len(t) }
 func (t Tuple) Get(i int) Object { return t[i] }
 
-func (t Tuple) JSON() string {
+func (t Tuple) String() string {
 	var b strings.Builder
-	b.WriteByte('(')
+	b.WriteByte('(') // TODO figure out how we want tuples in JSON. Probably as a list
 	for i, o := range t {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(o.JSON())
+		b.WriteString(toString(o))
 	}
 	b.WriteByte(')')
 	return b.String()

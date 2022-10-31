@@ -65,7 +65,7 @@ type Unpickler struct {
 	stack          []types.Object
 	metaStack      [][]types.Object
 	memo           map[int]types.Object
-	FindClass      func(module, name types.String) (types.Object, error)
+	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(interface{}) (types.Object, error)
 	GetExtension   func(code int) (types.Object, error)
 	NextBuffer     func() (types.Object, error)
@@ -115,7 +115,7 @@ func (p pickleStop) Error() string { return "STOP" }
 
 var _ error = pickleStop{}
 
-func (u *Unpickler) findClass(module, name types.String) (types.Object, error) {
+func (u *Unpickler) findClass(module, name string) (types.Object, error) {
 	switch module {
 	case "collections":
 		switch name {
@@ -128,16 +128,11 @@ func (u *Unpickler) findClass(module, name types.String) (types.Object, error) {
 		case "object":
 			return &types.ObjectClass{}, nil
 		}
-	case "copy_reg":
-		switch name {
-		case "_reconstructor":
-			return &types.Reconstructor{}, nil
-		}
 	}
 	if u.FindClass != nil {
 		return u.FindClass(module, name)
 	}
-	return types.NewGenericClass(module, name), nil
+	panic(fmt.Sprintf("can't unpickle type %s.%s", string(module), string(name)))
 }
 
 func (u *Unpickler) read(n int) ([]byte, error) {
@@ -435,19 +430,19 @@ func loadBinPersId(u *Unpickler) error {
 
 // push None (nil)
 func loadNone(u *Unpickler) error {
-	u.append(types.None{})
+	u.append(types.NewNone())
 	return nil
 }
 
 // push False
 func loadFalse(u *Unpickler) error {
-	u.append(types.Bool(false))
+	u.append(types.NewBool(false))
 	return nil
 }
 
 // push True
 func loadTrue(u *Unpickler) error {
-	u.append(types.Bool(true))
+	u.append(types.NewBool(true))
 	return nil
 }
 
@@ -459,18 +454,18 @@ func loadInt(u *Unpickler) error {
 	}
 	data := string(line[:len(line)-1])
 	if len(data) == 2 && data[0] == '0' && data[1] == '0' {
-		u.append(types.Bool(false))
+		u.append(types.NewBool(false))
 		return nil
 	}
 	if len(data) == 2 && data[0] == '0' && data[1] == '1' {
-		u.append(types.Bool(true))
+		u.append(types.NewBool(true))
 		return nil
 	}
 	i, err := strconv.Atoi(data)
 	if err != nil {
 		return err
 	}
-	u.append(types.Int(i))
+	u.append(types.NewInt(int64(i)))
 	return nil
 }
 
@@ -480,7 +475,7 @@ func loadBinInt(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.Int(decodeInt32(buf)))
+	u.append(types.NewInt(int64(decodeInt32(buf))))
 	return nil
 }
 
@@ -490,7 +485,7 @@ func loadBinInt1(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.Int(int(i)))
+	u.append(types.NewInt(int64(i)))
 	return nil
 }
 
@@ -500,7 +495,7 @@ func loadBinInt2(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.Int(int(binary.LittleEndian.Uint16(buf))))
+	u.append(types.NewInt(int64(binary.LittleEndian.Uint16(buf))))
 	return nil
 }
 
@@ -526,12 +521,12 @@ func loadLong(u *Unpickler) error {
 			if !ok {
 				return fmt.Errorf("invalid long data")
 			}
-			u.append((*types.Long)(bi))
+			u.append(types.NewLong(bi))
 			return nil
 		}
 		return err
 	}
-	u.append(types.Int(int(i)))
+	u.append(types.NewInt(int64(i)))
 	return nil
 }
 
@@ -587,7 +582,7 @@ func decodeLong(bytes []byte) types.Object {
 			bi = bi.Add(bi, big.NewInt(1))
 			bi = bi.Neg(bi)
 		}
-		return (*types.Long)(bi)
+		return types.NewLong(bi)
 	}
 
 	var ux, bitMask uint64
@@ -597,9 +592,9 @@ func decodeLong(bytes []byte) types.Object {
 		bitMask = (bitMask << 8) | 0xFF
 	}
 	if msBitSet {
-		return types.Int(-(int64(^ux&bitMask) + 1))
+		return types.NewInt(-(int64(^ux&bitMask) + 1))
 	}
-	return types.Int(ux)
+	return types.NewInt(int64(ux))
 }
 
 // push float object; decimal string argument
@@ -612,7 +607,7 @@ func loadFloat(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.Float(f))
+	u.append(types.NewFloat(f))
 	return nil
 }
 
@@ -622,7 +617,7 @@ func loadBinFloat(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.Float(math.Float64frombits(binary.BigEndian.Uint64(buf))))
+	u.append(types.NewFloat(math.Float64frombits(binary.BigEndian.Uint64(buf))))
 	return nil
 }
 
@@ -757,7 +752,7 @@ func loadByteArray8(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewByteArrayFromSlice(buf))
+	u.append(types.NewByteArray(buf))
 	return nil
 }
 
@@ -959,7 +954,7 @@ func loadInst(u *Unpickler) error {
 	}
 	name := string(line[0 : len(line)-1])
 
-	class, err := u.findClass(types.String(module), types.String(name))
+	class, err := u.findClass(module, name)
 	if err != nil {
 		return err
 	}
@@ -1084,7 +1079,7 @@ func loadGlobal(u *Unpickler) error {
 	}
 	name := string(line[0 : len(line)-1])
 
-	class, err := u.findClass(types.String(module), types.String(name))
+	class, err := u.findClass(module, name)
 	if err != nil {
 		return err
 	}
@@ -1112,7 +1107,7 @@ func loadStackGlobal(u *Unpickler) error {
 		return fmt.Errorf("STACK_GLOBAL requires str module: %#v", rawModule)
 	}
 
-	class, err := u.findClass(module, name)
+	class, err := u.findClass(string(module), string(name))
 	if err != nil {
 		return err
 	}
@@ -1436,34 +1431,43 @@ func loadBuild(u *Unpickler) error {
 	}
 
 	if stateDict, ok := state.(*types.Dict); ok {
-		instPds, instPdsOk := inst.(types.PyDictSettable)
-		if !instPdsOk {
-			return fmt.Errorf("BUILD requires a PyDictSettable instance: %#v", inst)
-		}
-		for _, entry := range *stateDict {
-			err := instPds.PyDictSet(entry.Key, entry.Value)
-			if err != nil {
-				return err
+		_ = stateDict
+		panic("stateDict not implemented")
+		/*
+			instPds, instPdsOk := inst.(types.PyDictSettable)
+			if !instPdsOk {
+				return fmt.Errorf("BUILD requires a PyDictSettable instance: %#v", inst)
 			}
-		}
+			for _, entry := range *stateDict {
+				err := instPds.PyDictSet(entry.Key, entry.Value)
+				if err != nil {
+					return err
+				}
+			}
+		*/
 	}
 
 	if slotStateDict, ok := slotState.(*types.Dict); ok {
-		instSa, instOk := inst.(types.PyAttrSettable)
-		if !instOk {
-			return fmt.Errorf(
-				"BUILD requires a PyAttrSettable instance: %#v", inst)
-		}
-		for _, entry := range *slotStateDict {
-			sk, keyOk := entry.Key.(types.String)
-			if !keyOk {
-				return fmt.Errorf("BUILD requires string slot state keys")
-			}
-			err := instSa.PySetAttr(string(sk), entry.Value)
-			if err != nil {
-				return err
-			}
-		}
+		_ = slotStateDict
+		panic("slotStateDict not implemented")
+		/*
+			/*
+				instSa, instOk := inst.(types.PyAttrSettable)
+				if !instOk {
+					return fmt.Errorf(
+						"BUILD requires a PyAttrSettable instance: %#v", inst)
+				}
+				for _, entry := range *slotStateDict {
+					sk, keyOk := entry.Key.(types.String)
+					if !keyOk {
+						return fmt.Errorf("BUILD requires string slot state keys")
+					}
+					err := instSa.PySetAttr(string(sk), entry.Value)
+					if err != nil {
+						return err
+					}
+				}
+		*/
 	}
 
 	return nil

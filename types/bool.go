@@ -4,11 +4,11 @@
 
 package types
 
-type Bool bool
+type Bool string
 
-func (b Bool) JSON() string {
+func NewBool(b bool) Bool {
 	if b {
-		return "true"
+		return Bool("true")
 	}
-	return "false"
+	return Bool("false")
 }

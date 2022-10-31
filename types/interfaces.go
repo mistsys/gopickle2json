@@ -4,6 +4,8 @@
 
 package types
 
+import "fmt"
+
 // Callable is implemented by any value that can be directly called to get a
 // new value.
 //
@@ -64,7 +66,17 @@ type PyAttrSettable interface {
 	PySetAttr(key string, value Object) error
 }
 
-// Object is a generic json-converted python object. JSON() returns the JSON representation of object
+// Object is a generic json-converted python object.
 type Object interface {
-	JSON() string
+}
+
+func toString(obj Object) string {
+	switch str := obj.(type) {
+	case fmt.Stringer:
+		return str.String()
+	case string:
+		return str
+	default:
+		panic(fmt.Sprintf("Can't convert type %T to string", obj))
+	}
 }

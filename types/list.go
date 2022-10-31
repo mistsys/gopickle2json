@@ -4,7 +4,9 @@
 
 package types
 
-import "strings"
+import (
+	"strings"
+)
 
 // ListAppender is implemented by any value that exhibits a list-like
 // behaviour, allowing arbitrary values to be appended.
@@ -14,52 +16,40 @@ type ListAppender interface {
 }
 
 // List represents a Python "list" (builtin type).
-type List []Object
+type List strings.Builder
 
 var _ ListAppender = &List{}
 
 // NewList makes and returns a new empty List.
 func NewList() *List {
-	l := make(List, 0, 4)
-	return &l
+	var l strings.Builder
+	l.WriteString("[")
+	return (*List)(&l)
 }
 
 // NewListFromSlice makes and returns a new List initialized with the elements
 // of the given slice.
-//
-// The new List is a simple type cast of the input slice; the slice is _not_
-// copied.
 func NewListFromSlice(slice []Object) *List {
-	l := List(slice)
-	return &l
-}
-
-// Append appends one element to the end of the List.
-func (l *List) Append(v Object) {
-	*l = append(*l, v)
-}
-
-// Get returns the element of the List at the given index.
-//
-// It panics if the index is out of range.
-func (l *List) Get(i int) Object {
-	return (*l)[i]
-}
-
-// Len returns the length of the List.
-func (l *List) Len() int {
-	return len(*l)
-}
-
-func (l *List) JSON() string {
 	var b strings.Builder
 	b.WriteByte('[')
-	for i, o := range *l {
+	for i, obj := range slice {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(o.JSON())
+		b.WriteString(toString(obj))
 	}
-	b.WriteByte(']')
-	return b.String()
+	return (*List)(&b)
+}
+
+// Append appends one element to the end of the List.
+func (l *List) Append(obj Object) {
+	b := (*strings.Builder)(l)
+	if b.Len() != 1 {
+		b.WriteByte(',')
+	}
+	b.WriteString(toString(obj))
+}
+
+func (l *List) String() string {
+	return (*strings.Builder)(l).String() + "]"
 }

@@ -4,8 +4,8 @@
 
 package types
 
-type None struct{}
+type None string
 
-func (None) JSON() string {
-	return "null"
+func NewNone() None {
+	return None("null")
 }

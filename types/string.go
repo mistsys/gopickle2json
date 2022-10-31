@@ -8,7 +8,10 @@ import "fmt"
 
 type String string
 
-func (s String) JSON() string {
-	// escape the string if needed
+func NewString(s string) String {
+	return String(s) // don't quote and escape the string yet --- we might need it to form the name of a class or something
+}
+
+func (s String) String() string {
 	return fmt.Sprintf("%q", string(s)) // TODO check that upper unicode chars are ok
 }

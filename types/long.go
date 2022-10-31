@@ -6,12 +6,8 @@ package types
 
 import "math/big"
 
-type Long big.Int
+type Long string
 
-func (l *Long) String() string {
-	return ((*big.Int)(l)).String()
-}
-
-func (l *Long) JSON() string {
-	return l.String()
+func NewLong(l *big.Int) Long {
+	return Long(((*big.Int)(l)).String())
 }

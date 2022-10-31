@@ -6,8 +6,8 @@ package types
 
 import "strconv"
 
-type Int int64
+type Int string
 
-func (i Int) JSON() string {
-	return strconv.FormatInt(int64(i), 10)
+func NewInt(i int64) Int {
+	return Int(strconv.FormatInt(i, 10))
 }
