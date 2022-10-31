@@ -18,13 +18,13 @@ func (t Tuple) Get(i int) Object { return t[i] }
 
 func (t Tuple) JSON() string {
 	var b strings.Builder
-	b.WriteByte('(')
+	b.WriteByte('[')
 	for i, o := range t {
 		if i != 0 {
 			b.WriteByte(',')
 		}
 		b.WriteString(o.JSON())
 	}
-	b.WriteByte(')')
+	b.WriteByte(']')
 	return b.String()
 }
