@@ -22,12 +22,12 @@ const (
 
 func TestNoneP1(t *testing.T) {
 	// pickle.dumps(None, protocol=1)
-	loadsNoErrEqual(t, "N.", nil)
+	loadsNoErrEqual(t, "N.", types.None{})
 }
 
 func TestNoneP2(t *testing.T) {
 	// pickle.dumps(None, protocol=2)
-	loadsNoErrEqual(t, "\x80\x02N.", nil)
+	loadsNoErrEqual(t, "\x80\x02N.", types.None{})
 }
 
 func TestTrueP1(t *testing.T) {
