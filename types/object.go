@@ -23,3 +23,7 @@ func (o *ObjectClass) PyNew(args ...Object) (Object, error) {
 			"ObjectClass.PyNew unprocessable args: %#v", args)
 	}
 }
+
+func (*ObjectClass) String() string {
+	panic("can't serialize ObjectClass to JSON")
+}

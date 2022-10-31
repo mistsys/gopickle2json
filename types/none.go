@@ -9,3 +9,5 @@ type None string
 func NewNone() None {
 	return None("null")
 }
+
+func (n None) String() string { return string(n) }

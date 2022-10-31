@@ -11,3 +11,5 @@ type Float string
 func NewFloat(f float64) Float {
 	return Float(strconv.FormatFloat(float64(f), 'G', -1, 64))
 }
+
+func (f Float) String() string { return string(f) }

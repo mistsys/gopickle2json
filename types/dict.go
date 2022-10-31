@@ -33,9 +33,9 @@ func (d *Dict) Set(key, value Object) {
 	if b.Len() != 1 {
 		b.WriteByte(',')
 	}
-	b.WriteString(toString(key))
+	b.WriteString(key.String())
 	b.WriteByte(':')
-	b.WriteString(toString(value))
+	b.WriteString(value.String())
 }
 
 func (d *Dict) String() string {

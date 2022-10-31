@@ -11,3 +11,5 @@ type Int string
 func NewInt(i int64) Int {
 	return Int(strconv.FormatInt(i, 10))
 }
+
+func (i Int) String() string { return string(i) }

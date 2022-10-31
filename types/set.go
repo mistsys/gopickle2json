@@ -32,7 +32,7 @@ func (s *Set) Add(v Object) {
 	if b.Len() != 1 {
 		b.WriteByte(',')
 	}
-	b.WriteString(toString(v))
+	b.WriteString(v.String())
 }
 
 func (s *Set) String() string {

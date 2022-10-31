@@ -36,7 +36,7 @@ func NewListFromSlice(slice []Object) *List {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(toString(obj))
+		b.WriteString(obj.String())
 	}
 	return (*List)(&b)
 }
@@ -47,7 +47,7 @@ func (l *List) Append(obj Object) {
 	if b.Len() != 1 {
 		b.WriteByte(',')
 	}
-	b.WriteString(toString(obj))
+	b.WriteString(obj.String())
 }
 
 func (l *List) String() string {

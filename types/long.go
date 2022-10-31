@@ -11,3 +11,5 @@ type Long string
 func NewLong(l *big.Int) Long {
 	return Long(((*big.Int)(l)).String())
 }
+
+func (l Long) String() string { return string(l) }

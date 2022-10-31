@@ -68,15 +68,5 @@ type PyAttrSettable interface {
 
 // Object is a generic json-converted python object.
 type Object interface {
-}
-
-func toString(obj Object) string {
-	switch str := obj.(type) {
-	case fmt.Stringer:
-		return str.String()
-	case string:
-		return str
-	default:
-		panic(fmt.Sprintf("Can't convert type %T to string", obj))
-	}
+	fmt.Stringer
 }

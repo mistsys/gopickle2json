@@ -14,3 +14,5 @@ type ByteArray string
 func NewByteArray(bytes []byte) ByteArray {
 	return ByteArray(base64.StdEncoding.EncodeToString(bytes))
 }
+
+func (b ByteArray) String() string { return string(b) }

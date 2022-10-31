@@ -23,7 +23,7 @@ func (t Tuple) String() string {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(toString(o))
+		b.WriteString(o.String())
 	}
 	b.WriteByte(']')
 	return b.String()

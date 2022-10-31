@@ -19,8 +19,10 @@ func NewFrozenSetFromSlice(slice []Object) FrozenSet {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(toString(o))
+		b.WriteString(o.String())
 	}
 	b.WriteByte(']')
 	return FrozenSet(b.String())
 }
+
+func (f FrozenSet) String() string { return string(f) }

@@ -12,3 +12,5 @@ func NewBool(b bool) Bool {
 	}
 	return Bool("false")
 }
+
+func (b Bool) String() string { return string(b) }

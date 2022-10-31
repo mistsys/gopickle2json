@@ -27,6 +27,10 @@ func (*OrderedDictClass) Call(args ...Object) (Object, error) {
 	return NewOrderedDict(), nil
 }
 
+func (*OrderedDictClass) String() string {
+	panic("can't serialize OrderedDictClass to JSON")
+}
+
 // OrderedDict is a minimal and trivial implementation of an ordered map,
 // which represent a Python "collections.OrderedDict" object.
 //
