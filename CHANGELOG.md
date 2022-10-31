@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2022-10-31
+### Fixed
+- Python tuples become JSON lists.
+
 ## [0.2.1] - 2022-10-27
 ### Fixed
 - Added types.None, which was missing.
