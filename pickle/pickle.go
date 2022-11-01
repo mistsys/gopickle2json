@@ -1323,7 +1323,7 @@ func loadAppend(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	obj, err := u.stackPop()
+	obj, err := u.stackLast()
 	if err != nil {
 		return err
 	}
@@ -1332,7 +1332,6 @@ func loadAppend(u *Unpickler) error {
 		return fmt.Errorf("APPEND requires ListAppender")
 	}
 	list.Append(value)
-	u.append(list)
 	return nil
 }
 
@@ -1342,7 +1341,7 @@ func loadAppends(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	obj, err := u.stackPop()
+	obj, err := u.stackLast()
 	if err != nil {
 		return err
 	}
@@ -1351,7 +1350,6 @@ func loadAppends(u *Unpickler) error {
 		return fmt.Errorf("APPEND requires List")
 	}
 	list.AppendMany(items)
-	u.append(list)
 	return nil
 }
 
@@ -1383,7 +1381,7 @@ func loadSetItems(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	obj, err := u.stackPop()
+	obj, err := u.stackLast()
 	if err != nil {
 		return err
 	}
@@ -1392,7 +1390,6 @@ func loadSetItems(u *Unpickler) error {
 		return fmt.Errorf("SETITEMS requires DictSetter")
 	}
 	dict.SetMany(items)
-	u.append(dict)
 	return nil
 }
 
@@ -1402,7 +1399,7 @@ func loadAddItems(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	obj, err := u.stackPop()
+	obj, err := u.stackLast()
 	if err != nil {
 		return err
 	}
@@ -1411,7 +1408,6 @@ func loadAddItems(u *Unpickler) error {
 		return fmt.Errorf("ADDITEMS requires SetAdder")
 	}
 	set.AddMany(items)
-	u.append(set)
 	return nil
 }
 
