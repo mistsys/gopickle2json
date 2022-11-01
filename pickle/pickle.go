@@ -1350,9 +1350,7 @@ func loadAppends(u *Unpickler) error {
 	if !listOk {
 		return fmt.Errorf("APPEND requires List")
 	}
-	for _, item := range items {
-		list.Append(item)
-	}
+	list.AppendMany(items)
 	u.append(list)
 	return nil
 }
@@ -1393,11 +1391,7 @@ func loadSetItems(u *Unpickler) error {
 	if !dictOk {
 		return fmt.Errorf("SETITEMS requires DictSetter")
 	}
-	itemsLen := len(items)
-	dict.Grow(itemsLen / 2)
-	for i := 0; i < itemsLen; i += 2 {
-		dict.Set(items[i], items[i+1])
-	}
+	dict.SetMany(items)
 	u.append(dict)
 	return nil
 }
@@ -1416,10 +1410,7 @@ func loadAddItems(u *Unpickler) error {
 	if !setOk {
 		return fmt.Errorf("ADDITEMS requires SetAdder")
 	}
-	set.Grow(len(items))
-	for _, item := range items {
-		set.Add(item)
-	}
+	set.AddMany(items)
 	u.append(set)
 	return nil
 }

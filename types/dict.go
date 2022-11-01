@@ -11,8 +11,8 @@ import (
 // DictSetter is implemented by any value that exhibits a dict-like behaviour,
 // allowing arbitrary key/value pairs to be set.
 type DictSetter interface {
-	Grow(int)
 	Set(key, value Object)
+	SetMany([]Object) // pairs of key, value
 	Object
 }
 
@@ -30,20 +30,13 @@ func NewDict(n int) *Dict {
 	return &d
 }
 
-// make room for n more key:value pairs
-func (d *Dict) Grow(n int) {
-	n *= 2 // 2 entries per pair
-	l := len(*d)
-	h := cap(*d) - l
-	if n <= h {
-		return
-	}
-	*d = append(*d, make([]Object, n)...)[:l] // compiler is usually smart and realises this is a slice extension
-}
-
 // Set sets into the Dict the given key/value pair.
 func (d *Dict) Set(key, value Object) {
 	*d = append(*d, key, value)
+}
+
+func (d *Dict) SetMany(kv []Object) {
+	*d = append(*d, kv...)
 }
 
 func (d *Dict) JSON(b *strings.Builder) {

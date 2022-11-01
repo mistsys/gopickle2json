@@ -48,14 +48,14 @@ func NewOrderedDict() *OrderedDict {
 	return (*OrderedDict)(NewDict(0))
 }
 
-func (o *OrderedDict) Grow(n int) {
-	(*Dict)(o).Grow(n)
-}
-
 // Set sets into the OrderedDict the given key/value pair. If the key does not
 // exist yet, the new pair is positioned at the end (back) of the OrderedDict.
 func (o *OrderedDict) Set(k, v Object) {
 	(*Dict)(o).Set(k, v)
+}
+
+func (o *OrderedDict) SetMany(kv []Object) {
+	(*Dict)(o).SetMany(kv)
 }
 
 // PyDictSet mimics the setting of a key/value pair on Python "__dict__"

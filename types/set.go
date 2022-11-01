@@ -9,8 +9,8 @@ import "strings"
 // SetAdder is implemented by any value that exhibits a set-like behaviour,
 // allowing arbitrary values to be added.
 type SetAdder interface {
-	Grow(int)
-	Add(v Object)
+	Add(Object)
+	AddMany([]Object)
 	Object
 }
 
@@ -25,18 +25,13 @@ func NewSet() *Set {
 	return &s
 }
 
-func (s *Set) Grow(n int) {
-	l := len(*s)
-	h := cap(*s) - l
-	if n <= h {
-		return
-	}
-	*s = append(*s, make([]Object, n)...)[:l] // compiler is usually smart and realises this is a slice extension
-}
-
 // Add adds one element to the Set.
 func (s *Set) Add(v Object) {
 	*s = append(*s, v)
+}
+
+func (s *Set) AddMany(objs []Object) {
+	*s = append(*s, objs...)
 }
 
 func (s *Set) JSON(b *strings.Builder) {
