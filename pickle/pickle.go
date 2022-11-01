@@ -13,10 +13,10 @@ import (
 	"math"
 	"math/big"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/mistsys/gopickle2json/types"
+	"github.com/nsd20463/bytesconv"
 )
 
 const HighestProtocol byte = 5
@@ -452,7 +452,7 @@ func loadInt(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	data := string(line[:len(line)-1])
+	data := line[:len(line)-1]
 	if len(data) == 2 && data[0] == '0' && data[1] == '0' {
 		u.append(types.NewBool(false))
 		return nil
@@ -461,7 +461,7 @@ func loadInt(u *Unpickler) error {
 		u.append(types.NewBool(true))
 		return nil
 	}
-	i, err := strconv.Atoi(data)
+	i, err := bytesconv.Atoi(data)
 	if err != nil {
 		return err
 	}
@@ -512,22 +512,20 @@ func loadLong(u *Unpickler) error {
 	if sub[len(sub)-1] == 'L' {
 		sub = sub[0 : len(sub)-1]
 	}
-	str := string(sub)
-	i, err := strconv.ParseInt(str, 10, 64)
-
-	if err != nil {
-		if ne, isNe := err.(*strconv.NumError); isNe && ne.Err == strconv.ErrRange {
-			bi, ok := new(big.Int).SetString(str, 10)
-			if !ok {
-				return fmt.Errorf("invalid long data")
-			}
-			u.append(types.NewLong(bi))
-			return nil
-		}
-		return err
+	i, err := bytesconv.ParseInt(sub, 10, 64)
+	if err == nil {
+		u.append(types.NewInt(int64(i)))
+		return nil
 	}
-	u.append(types.NewInt(int64(i)))
-	return nil
+	if ne, isNe := err.(*bytesconv.NumError); isNe && ne.Err == bytesconv.ErrRange {
+		bi, ok := new(big.Int).SetString(string(sub), 10)
+		if !ok {
+			return fmt.Errorf("invalid long data")
+		}
+		u.append(types.NewLong(bi))
+		return nil
+	}
+	return err
 }
 
 // push long from < 256 bytes
@@ -603,7 +601,7 @@ func loadFloat(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	f, err := strconv.ParseFloat(string(line[:len(line)-1]), 64)
+	f, err := bytesconv.ParseFloat(line[:len(line)-1], 64)
 	if err != nil {
 		return err
 	}
@@ -1228,7 +1226,7 @@ func loadGet(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i, err := strconv.Atoi(string(line[:len(line)-1]))
+	i, err := bytesconv.Atoi(line[:len(line)-1])
 	if err != nil {
 		return err
 	}
@@ -1263,7 +1261,7 @@ func loadPut(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i, err := strconv.Atoi(string(line[:len(line)-1]))
+	i, err := bytesconv.Atoi(line[:len(line)-1])
 	if err != nil {
 		return err
 	}
