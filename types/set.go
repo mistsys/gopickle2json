@@ -31,6 +31,11 @@ func (s *Set) Add(v Object) {
 }
 
 func (s *Set) AddMany(objs []Object) {
+	// it's common to load an empty set in one operation
+	if len(*s) == 0 {
+		*s = objs
+		return
+	}
 	*s = append(*s, objs...)
 }
 

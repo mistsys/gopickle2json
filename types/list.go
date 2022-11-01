@@ -39,6 +39,10 @@ func (l *List) Append(obj Object) {
 }
 
 func (l *List) AppendMany(objs []Object) {
+	if len(*l) == 0 {
+		*l = objs
+		return
+	}
 	*l = append(*l, objs...)
 }
 

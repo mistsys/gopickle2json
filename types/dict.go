@@ -36,6 +36,12 @@ func (d *Dict) Set(key, value Object) {
 }
 
 func (d *Dict) SetMany(kv []Object) {
+	// it's very common to have a single SetMany call which loads all items into an empty dict
+	// so treat that as a special case not requiring any copies
+	if len(*d) == 0 {
+		*d = kv
+		return
+	}
 	*d = append(*d, kv...)
 }
 
