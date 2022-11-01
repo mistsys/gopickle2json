@@ -64,9 +64,10 @@ type Unpickler struct {
 	currentFrame *bytes.Reader
 	stack        []types.Object
 	metaStack    [][]types.Object
-	memo         map[int]types.Object
+	memo         map[int]types.Object    // TODO try int32 indexes
 	strings      map[string]types.String // small strings (hopefully repeated)
 	// NOTE: I also tried memoizing small ints, but it made performance slightly worse
+	ram            []types.Object
 	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(interface{}) (types.Object, error)
 	GetExtension   func(code int) (types.Object, error)
@@ -88,7 +89,11 @@ func NewUnpickler(ior io.Reader) Unpickler {
 
 func (u *Unpickler) Load() (types.Object, error) {
 	u.metaStack = make([][]types.Object, 0, 16)
-	u.stack = make([]types.Object, 0, 16)
+	if len(u.ram) < 16 {
+		u.ram = make([]types.Object, 16*128)
+		u.ram = u.ram[:cap(u.ram)]
+	}
+	u.stack, u.ram = u.ram[0:0:16], u.ram[16:]
 	u.proto = 0
 
 	for {
@@ -1477,7 +1482,11 @@ func loadBuild(u *Unpickler) error {
 // push special markobject on stack
 func loadMark(u *Unpickler) error {
 	u.metaStack = append(u.metaStack, u.stack)
-	u.stack = make([]types.Object, 0, 16)
+	if len(u.ram) < 16 {
+		u.ram = make([]types.Object, 16*128)
+		u.ram = u.ram[:cap(u.ram)]
+	}
+	u.stack, u.ram = u.ram[0:0:16], u.ram[16:]
 	return nil
 }
 
