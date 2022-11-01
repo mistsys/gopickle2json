@@ -5,15 +5,13 @@
 package pickle
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"math/big"
-	"os"
-	"strings"
+	"strconv"
 
 	"github.com/mistsys/gopickle2json/types"
 	"github.com/nsd20463/bytesconv"
@@ -21,65 +19,24 @@ import (
 
 const HighestProtocol byte = 5
 
-func Load(filename string) (types.Object, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	u := NewUnpickler(bufio.NewReader(f))
-	return u.Load()
-}
-
-func Loads(s string) (types.Object, error) {
-	sr := strings.NewReader(s)
-	u := NewUnpickler(sr)
-	return u.Load()
-}
-
-type reader interface {
-	io.Reader
-	io.ByteReader
-}
-
-type bytereader struct {
-	io.Reader
-	bytebuf [1]byte
-}
-
-func (r *bytereader) ReadByte() (byte, error) {
-	n, err := r.Read(r.bytebuf[:])
-	if n == 1 {
-		return r.bytebuf[0], nil
-	}
-	if err == nil {
-		err = io.EOF
-	}
-	return 0, err
-}
-
 type Unpickler struct {
-	r              reader
-	proto          byte
-	currentFrame   *bytes.Reader
+	in             []byte // unread input
+	currentFrame   []byte // nil, or unread portion of current frame
 	stack          []types.Object
 	metaStack      [][]types.Object
 	memo           map[int]types.Object // TODO try int32 indexes
 	ram            []types.Object
 	FindClass      func(module, name string) (types.Object, error)
-	PersistentLoad func(interface{}) (types.Object, error)
+	PersistentLoad func(types.Object) (types.Object, error)
 	GetExtension   func(code int) (types.Object, error)
 	NextBuffer     func() (types.Object, error)
 	MakeReadOnly   func(types.Object) (types.Object, error)
+	proto          byte
 }
 
-func NewUnpickler(ior io.Reader) Unpickler {
-	r, ok := ior.(reader)
-	if !ok {
-		r = &bytereader{Reader: ior}
-	}
+func NewUnpickler(in []byte) Unpickler {
 	return Unpickler{
-		r:    r,
+		in:   in,
 		memo: make(map[int]types.Object, 256+128),
 	}
 }
@@ -141,98 +98,83 @@ func (u *Unpickler) findClass(module, name string) (types.Object, error) {
 }
 
 func (u *Unpickler) read(n int) ([]byte, error) {
-	buf := make([]byte, n)
+	var out []byte
 
 	if u.currentFrame != nil {
-		m, err := io.ReadFull(u.currentFrame, buf)
-		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-			return nil, err
+		if len(u.currentFrame) < n {
+			if len(u.currentFrame) == 0 {
+				u.currentFrame = nil
+				goto no_current_frame
+			}
+			return nil, io.ErrUnexpectedEOF
 		}
-		if m == 0 && n != 0 {
-			u.currentFrame = nil
-			m, err := io.ReadFull(u.r, buf)
-			return buf[0:m], err
-		}
-		if m < n {
-			return nil, fmt.Errorf("pickle exhausted before end of frame")
-		}
-		return buf[0:m], nil
+		out, u.currentFrame = u.currentFrame[:n:n], u.currentFrame[n:]
+		return out, nil
 	}
+no_current_frame:
 
-	m, err := io.ReadFull(u.r, buf)
-	return buf[0:m], err
+	if len(u.in) < n {
+		return nil, io.ErrUnexpectedEOF
+	}
+	out, u.in = u.in[:n:n], u.in[n:]
+	return out, nil
 }
 
 func (u *Unpickler) readOne() (byte, error) {
-	var err error
 	var b byte
-	if u.currentFrame != nil {
-		b, err = u.currentFrame.ReadByte()
-	} else {
-		b, err = u.r.ReadByte()
-	}
-	if err == nil {
+	if len(u.currentFrame) != 0 {
+		b, u.currentFrame = u.currentFrame[0], u.currentFrame[1:]
 		return b, nil
 	}
-
-	buf, err := u.read(1)
-	if err != nil {
-		return 0, err
+	if len(u.in) == 0 {
+		return 0, io.ErrUnexpectedEOF
 	}
-	return buf[0], nil
+	b, u.in = u.in[0], u.in[1:]
+	return b, nil
 }
 
-func (u *Unpickler) readLine() ([]byte, error) {
-	if u.currentFrame != nil {
-		line, err := readLine(u.currentFrame)
-		if err != nil {
-			if err == io.EOF && len(line) == 0 {
-				u.currentFrame = nil
-				return readLine(u.r)
-			}
-			return nil, err
-		}
-		if len(line) == 0 {
-			return nil, fmt.Errorf("readLine no data")
-		}
-		if line[len(line)-1] != '\n' {
-			return nil, fmt.Errorf("pickle exhausted before end of frame")
-		}
-		return line, nil
+// return the line as a []byte, without the terminating \n (which is required to be present)
+func (u *Unpickler) readLineBytes() ([]byte, error) {
+	var out []byte
+	var err error
+	if len(u.currentFrame) != 0 {
+		out, u.currentFrame, err = readLine(u.currentFrame)
+	} else {
+		out, u.in, err = readLine(u.in)
 	}
-	return readLine(u.r)
+	return out, err
 }
 
-func readLine(r reader) (line []byte, err error) {
-	line = make([]byte, 0, 32)
+// return the line as a string, without the terminating \n (which is required to be present)
+func (u *Unpickler) readLine() (string, error) {
+	var out []byte
+	var err error
+	if len(u.currentFrame) != 0 {
+		out, u.currentFrame, err = readLine(u.currentFrame)
+	} else {
+		out, u.in, err = readLine(u.in)
+	}
+	return string(out), err
+}
 
-	var b byte
-	for {
-		b, err = r.ReadByte()
-		if err != nil {
-			return
-		}
-		line = append(line, b)
+func readLine(in []byte) (line []byte, out []byte, err error) {
+	for i, b := range in {
 		if b == '\n' {
-			return
+			line, out = in[:i:i], in[i+1:] // note we skip and don't return the \n; no callers want it
+			return line, out, nil
 		}
 	}
+	return nil, in, io.ErrUnexpectedEOF
 }
 
 func (u *Unpickler) loadFrame(frameSize int) error {
-	buf := make([]byte, frameSize)
-	if u.currentFrame != nil {
-		n, err := (*u.currentFrame).Read(buf)
-		if n > 0 || err == nil {
-			return fmt.Errorf(
-				"beginning of a new frame before end of current frame")
-		}
+	if len(u.currentFrame) != 0 {
+		return errors.New("beginning of a new frame before end of current frame")
 	}
-	_, err := io.ReadFull(u.r, buf)
-	if err != nil {
-		return err
+	if len(u.in) < frameSize {
+		return io.ErrUnexpectedEOF
 	}
-	u.currentFrame = bytes.NewReader(buf)
+	u.currentFrame, u.in = u.in[:frameSize:frameSize], u.in[frameSize:]
 	return nil
 }
 
@@ -403,12 +345,11 @@ func loadPersId(u *Unpickler) error {
 	if u.PersistentLoad == nil {
 		return fmt.Errorf("unsupported persistent ID encountered")
 	}
-	line, err := u.readLine()
+	line, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
-	pid := string(line[:len(line)-1])
-	result, err := u.PersistentLoad(pid)
+	result, err := u.PersistentLoad(types.NewString(line))
 	if err != nil {
 		return err
 	}
@@ -453,11 +394,10 @@ func loadTrue(u *Unpickler) error {
 
 // push integer or bool; decimal string argument
 func loadInt(u *Unpickler) error {
-	line, err := u.readLine()
+	data, err := u.readLine()
 	if err != nil {
 		return err
 	}
-	data := line[:len(line)-1]
 	if len(data) == 2 && data[0] == '0' && data[1] == '0' {
 		u.append(types.NewBool(false))
 		return nil
@@ -466,7 +406,7 @@ func loadInt(u *Unpickler) error {
 		u.append(types.NewBool(true))
 		return nil
 	}
-	i, err := bytesconv.Atoi(data)
+	i, err := strconv.Atoi(data)
 	if err != nil {
 		return err
 	}
@@ -506,24 +446,23 @@ func loadBinInt2(u *Unpickler) error {
 
 // push long; decimal string argument
 func loadLong(u *Unpickler) error {
-	line, err := u.readLine()
+	sub, err := u.readLine()
 	if err != nil {
 		return err
 	}
-	sub := line[:len(line)-1]
 	if len(sub) == 0 {
 		return fmt.Errorf("invalid long data")
 	}
 	if sub[len(sub)-1] == 'L' {
 		sub = sub[0 : len(sub)-1]
 	}
-	i, err := bytesconv.ParseInt(sub, 10, 64)
+	i, err := strconv.ParseInt(sub, 10, 64)
 	if err == nil {
 		u.append(types.NewInt(int64(i)))
 		return nil
 	}
 	if ne, isNe := err.(*bytesconv.NumError); isNe && ne.Err == bytesconv.ErrRange {
-		bi, ok := new(big.Int).SetString(string(sub), 10)
+		bi, ok := new(big.Int).SetString(sub, 10)
 		if !ok {
 			return fmt.Errorf("invalid long data")
 		}
@@ -606,7 +545,7 @@ func loadFloat(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	f, err := bytesconv.ParseFloat(line[:len(line)-1], 64)
+	f, err := strconv.ParseFloat(line, 64)
 	if err != nil {
 		return err
 	}
@@ -626,16 +565,15 @@ func loadBinFloat(u *Unpickler) error {
 
 // push string; NL-terminated string argument
 func loadString(u *Unpickler) error {
-	line, err := u.readLine()
+	data, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
-	data := line[:len(line)-1]
 	// Strip outermost quotes
 	if !isQuotedString(data) {
 		return fmt.Errorf("the STRING opcode argument must be quoted")
 	}
-	data = data[1 : len(data)-1]
+	data = data[1 : len(data)-1] // remove the quotes
 	u.append(types.NewString(data))
 	return nil
 }
@@ -680,11 +618,11 @@ func loadBinBytes(u *Unpickler) error {
 
 // push Unicode string; raw-unicode-escaped'd argument
 func loadUnicode(u *Unpickler) error {
-	line, err := u.readLine()
+	line, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(line[:len(line)-1]))
+	u.append(types.NewString(line))
 	return nil
 }
 
@@ -942,17 +880,15 @@ func loadDict(u *Unpickler) error {
 
 // build & push class instance
 func loadInst(u *Unpickler) error {
-	line, err := u.readLine()
+	module, err := u.readLine()
 	if err != nil {
 		return err
 	}
-	module := string(line[0 : len(line)-1])
 
-	line, err = u.readLine()
+	name, err := u.readLine()
 	if err != nil {
 		return err
 	}
-	name := string(line[0 : len(line)-1])
 
 	class, err := u.findClass(module, name)
 	if err != nil {
@@ -1067,17 +1003,15 @@ func loadNewObjEx(u *Unpickler) error {
 
 // push self.find_class(modname, name); 2 string args
 func loadGlobal(u *Unpickler) error {
-	line, err := u.readLine() // TODO: deode UTF-8?
+	module, err := u.readLine()
 	if err != nil {
 		return err
 	}
-	module := string(line[0 : len(line)-1])
 
-	line, err = u.readLine() // TODO: deode UTF-8?
+	name, err := u.readLine()
 	if err != nil {
 		return err
 	}
-	name := string(line[0 : len(line)-1])
 
 	class, err := u.findClass(module, name)
 	if err != nil {
@@ -1228,7 +1162,7 @@ func loadGet(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i, err := bytesconv.Atoi(line[:len(line)-1])
+	i, err := strconv.Atoi(line)
 	if err != nil {
 		return err
 	}
@@ -1263,7 +1197,7 @@ func loadPut(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i, err := bytesconv.Atoi(line[:len(line)-1])
+	i, err := strconv.Atoi(line)
 	if err != nil {
 		return err
 	}
