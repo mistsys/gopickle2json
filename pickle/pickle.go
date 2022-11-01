@@ -118,7 +118,7 @@ func (u *Unpickler) Load() (types.Object, error) {
 }
 
 func (u *Unpickler) NewString(buf []byte) types.String {
-	if len(buf) >= 128 {
+	if len(buf) >= 64 {
 		// it's unlikely such a string is going to be reused
 		return types.NewString(buf)
 	}
