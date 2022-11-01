@@ -65,6 +65,7 @@ type Unpickler struct {
 	stack          []types.Object
 	metaStack      [][]types.Object
 	memo           map[int]types.Object
+	strings        map[string]types.String
 	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(interface{}) (types.Object, error)
 	GetExtension   func(code int) (types.Object, error)
@@ -78,8 +79,9 @@ func NewUnpickler(ior io.Reader) Unpickler {
 		r = &bytereader{Reader: ior}
 	}
 	return Unpickler{
-		r:    r,
-		memo: make(map[int]types.Object, 256+128),
+		r:       r,
+		memo:    make(map[int]types.Object, 256+128),
+		strings: make(map[string]types.String),
 	}
 }
 
@@ -107,6 +109,20 @@ func (u *Unpickler) Load() (types.Object, error) {
 			return nil, err
 		}
 	}
+}
+
+func (u *Unpickler) NewString(buf []byte) types.String {
+	if len(buf) >= 128 {
+		// it's unlikely such a string is going to be reused
+		return types.NewString(buf)
+	}
+	// see if we have seen this string before
+	if str, ok := u.strings[string(buf)]; ok { // note: go 1.19 does a good job and avoids copying the buf during lookup
+		return str
+	}
+	str := types.NewString(buf)
+	u.strings[string(buf)] = str
+	return str
 }
 
 type pickleStop struct{ value types.Object }
@@ -631,8 +647,7 @@ func loadString(u *Unpickler) error {
 		return fmt.Errorf("the STRING opcode argument must be quoted")
 	}
 	data = data[1 : len(data)-1]
-	// TODO: decode to string with the desired decoder
-	u.append(types.String(data))
+	u.append(u.NewString(data))
 	return nil
 }
 
@@ -655,8 +670,7 @@ func loadBinString(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	// TODO: decode to string with the desired decoder
-	u.append(types.String(data))
+	u.append(u.NewString(data))
 	return nil
 }
 
@@ -681,7 +695,7 @@ func loadUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.String(line[:len(line)-1]))
+	u.append(u.NewString(line[:len(line)-1]))
 	return nil
 }
 
@@ -696,7 +710,7 @@ func loadBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.String(buf))
+	u.append(u.NewString(buf))
 	return nil
 }
 
@@ -714,7 +728,7 @@ func loadBinUnicode8(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.String(buf)) // TODO: decode UTF-8?
+	u.append(u.NewString(buf))
 	return nil
 }
 
@@ -794,8 +808,7 @@ func loadShortBinString(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	// TODO: decode to string with the desired decoder
-	u.append(types.String(data))
+	u.append(u.NewString(data))
 	return nil
 }
 
@@ -823,7 +836,7 @@ func loadShortBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.String(buf))
+	u.append(u.NewString(buf))
 	return nil
 }
 
