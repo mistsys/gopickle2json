@@ -4,12 +4,17 @@
 
 package types
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
-type Int string
+type Int int64
 
 func NewInt(i int64) Int {
-	return Int(strconv.FormatInt(i, 10))
+	return Int(i)
 }
 
-func (i Int) String() string { return string(i) }
+func (i Int) JSON(b *strings.Builder) {
+	b.WriteString(strconv.FormatInt(int64(i), 10))
+}

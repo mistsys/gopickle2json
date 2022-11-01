@@ -6,6 +6,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 )
 
 type GenericClass struct {
@@ -32,10 +33,10 @@ func (g *GenericClass) PyNew(args ...Object) (Object, error) {
 	}, nil
 }
 
-func (g *GenericClass) String() string {
+func (g *GenericClass) JSON(*strings.Builder) {
 	panic(fmt.Sprintf("can't serialize GenericClass(%s.%s) to JSON", g.Module, g.Name))
 }
 
-func (g *GenericObject) String() string {
+func (g *GenericObject) JSON(*strings.Builder) {
 	panic(fmt.Sprintf("can't serialize GenericObject(%s.%s) to JSON", g.Class.Module, g.Class.Name))
 }

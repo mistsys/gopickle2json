@@ -4,7 +4,10 @@
 
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type ObjectClass struct{}
 
@@ -24,6 +27,6 @@ func (o *ObjectClass) PyNew(args ...Object) (Object, error) {
 	}
 }
 
-func (*ObjectClass) String() string {
+func (*ObjectClass) JSON(*strings.Builder) {
 	panic("can't serialize ObjectClass to JSON")
 }

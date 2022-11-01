@@ -16,40 +16,34 @@ type ListAppender interface {
 }
 
 // List represents a Python "list" (builtin type).
-type List strings.Builder
+type List []Object
 
 var _ ListAppender = &List{}
 
 // NewList makes and returns a new empty List.
 func NewList() *List {
-	var l strings.Builder
-	l.WriteString("[")
-	return (*List)(&l)
+	var l List
+	return &l
 }
 
 // NewListFromSlice makes and returns a new List initialized with the elements
 // of the given slice.
 func NewListFromSlice(slice []Object) *List {
-	var b strings.Builder
-	b.WriteByte('[')
-	for i, obj := range slice {
-		if i != 0 {
-			b.WriteByte(',')
-		}
-		b.WriteString(obj.String())
-	}
-	return (*List)(&b)
+	return (*List)(&slice)
 }
 
 // Append appends one element to the end of the List.
 func (l *List) Append(obj Object) {
-	b := (*strings.Builder)(l)
-	if b.Len() != 1 {
-		b.WriteByte(',')
-	}
-	b.WriteString(obj.String())
+	*l = append(*l, obj)
 }
 
-func (l *List) String() string {
-	return (*strings.Builder)(l).String() + "]"
+func (l *List) JSON(b *strings.Builder) {
+	b.WriteByte('[')
+	for i, o := range *l {
+		if i != 0 {
+			b.WriteByte(',')
+		}
+		o.JSON(b)
+	}
+	b.WriteByte(']')
 }

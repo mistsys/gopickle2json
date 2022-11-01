@@ -4,7 +4,7 @@
 
 package types
 
-import "fmt"
+import "strings"
 
 // Callable is implemented by any value that can be directly called to get a
 // new value.
@@ -68,5 +68,5 @@ type PyAttrSettable interface {
 
 // Object is a generic json-converted python object.
 type Object interface {
-	fmt.Stringer
+	JSON(*strings.Builder)
 }

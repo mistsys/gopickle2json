@@ -4,12 +4,17 @@
 
 package types
 
-import "math/big"
+import (
+	"math/big"
+	"strings"
+)
 
-type Long string
+type Long big.Int
 
-func NewLong(l *big.Int) Long {
-	return Long(((*big.Int)(l)).String())
+func NewLong(l *big.Int) *Long {
+	return (*Long)(l)
 }
 
-func (l Long) String() string { return string(l) }
+func (l *Long) JSON(b *strings.Builder) {
+	b.WriteString(((*big.Int)(l)).String())
+}

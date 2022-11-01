@@ -6,6 +6,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 )
 
 // OrderedDictClass represent Python "collections.OrderedDict" class.
@@ -27,7 +28,7 @@ func (*OrderedDictClass) Call(args ...Object) (Object, error) {
 	return NewOrderedDict(), nil
 }
 
-func (*OrderedDictClass) String() string {
+func (*OrderedDictClass) JSON(*strings.Builder) {
 	panic("can't serialize OrderedDictClass to JSON")
 }
 
@@ -60,6 +61,6 @@ func (o *OrderedDict) PyDictSet(key, value Object) error {
 	return nil
 }
 
-func (o *OrderedDict) String() string {
-	return (*Dict)(o).String()
+func (o *OrderedDict) JSON(b *strings.Builder) {
+	(*Dict)(o).JSON(b)
 }

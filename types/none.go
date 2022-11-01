@@ -4,10 +4,14 @@
 
 package types
 
-type None string
+import "strings"
+
+type None struct{}
 
 func NewNone() None {
-	return None("null")
+	return None{}
 }
 
-func (n None) String() string { return string(n) }
+func (n None) JSON(b *strings.Builder) {
+	b.WriteString("null")
+}

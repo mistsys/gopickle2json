@@ -4,13 +4,18 @@
 
 package types
 
-type Bool string
+import "strings"
+
+type Bool bool
 
 func NewBool(b bool) Bool {
-	if b {
-		return Bool("true")
-	}
-	return Bool("false")
+	return Bool(b)
 }
 
-func (b Bool) String() string { return string(b) }
+func (v Bool) JSON(b *strings.Builder) {
+	if v {
+		b.WriteString("true")
+	} else {
+		b.WriteString("false")
+	}
+}

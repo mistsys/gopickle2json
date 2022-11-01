@@ -4,15 +4,22 @@
 
 package types
 
-import "encoding/base64"
+import (
+	"encoding/base64"
+	"strings"
+)
 
 // ByteArray represents a Python "bytearray" (builtin type).
-type ByteArray string
+type ByteArray []byte
 
 // NewByteArray makes and returns a new ByteArray initialized with
 // the elements of the given slice.
 func NewByteArray(bytes []byte) ByteArray {
-	return ByteArray(base64.StdEncoding.EncodeToString(bytes))
+	return ByteArray(bytes)
 }
 
-func (b ByteArray) String() string { return string(b) }
+func (a ByteArray) JSON(b *strings.Builder) {
+	w := base64.NewEncoder(base64.StdEncoding, b)
+	w.Write([]byte(a))
+	w.Close()
+}

@@ -76,16 +76,17 @@ func escapedString(s []byte) String {
 const hex = "0123456789abcdef"
 
 // return the escaped string
-func (s String) String() string {
-	if s[0] == '"' {
-		return string(s)
+func (s String) JSON(b *strings.Builder) {
+	str := string(s)
+	if str[0] != '"' {
+		// the string has escaped characters in it
+		str = str[1:]
 	}
-	// the string has escaped characters in it
-	return string(s[1:])
+	b.WriteString(str)
 }
 
 // return the unescaped string (useful every once in a while)
-func (s String) RawString() string {
+func (s String) String() string {
 	n := len(s)
 	if n < 2 { // should never happen
 		return string(s)

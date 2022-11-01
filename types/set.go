@@ -14,27 +14,28 @@ type SetAdder interface {
 }
 
 // Set represents a Python "set" (builtin type).
-type Set strings.Builder
+type Set []Object
 
 var _ SetAdder = &Set{}
 
 // NewSet makes and returns a new empty Set.
 func NewSet() *Set {
-	// we represent a Set as a list in JSON
-	var b strings.Builder
-	b.WriteByte('[')
-	return (*Set)(&b)
+	var s Set
+	return &s
 }
 
 // Add adds one element to the Set.
 func (s *Set) Add(v Object) {
-	var b = (*strings.Builder)(s)
-	if b.Len() != 1 {
-		b.WriteByte(',')
-	}
-	b.WriteString(v.String())
+	*s = append(*s, v)
 }
 
-func (s *Set) String() string {
-	return (*strings.Builder)(s).String() + "]"
+func (s *Set) JSON(b *strings.Builder) {
+	b.WriteByte('[')
+	for i, o := range *s {
+		if i != 0 {
+			b.WriteByte(',')
+		}
+		o.JSON(b)
+	}
+	b.WriteByte(']')
 }

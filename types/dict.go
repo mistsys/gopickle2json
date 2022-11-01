@@ -16,43 +16,32 @@ type DictSetter interface {
 }
 
 // Dict represents a Python "dict" (builtin type).
-type Dict strings.Builder
+type Dict []Object
 
 var _ DictSetter = &Dict{}
 
 // NewDict makes and returns a new empty Dict.
 func NewDict() *Dict {
-	var d strings.Builder
-	d.WriteByte('-')
-	d.WriteByte('{')
-	return (*Dict)(&d)
+	var d Dict
+	return &d
 }
 
 // Set sets into the Dict the given key/value pair.
 func (d *Dict) Set(key, value Object) {
-	b := (*strings.Builder)(d)
-	k := key.String()
-	v := value.String()
-	b.Grow(1 + len(k) + 1 + len(v))
-	if b.Len() > 2 {
-		b.WriteByte(',')
-	}
-	b.WriteString(key.String())
-	b.WriteByte(':')
-	b.WriteString(value.String())
+	*d = append(*d, key, value)
 }
 
-func (d *Dict) String() string {
-	b := (*strings.Builder)(d)
-	s := b.String()
-	if s[0] == '-' {
-		// add the terminating '}' and overwrite the builder
-		b.WriteByte('}')
-		s = b.String()
-		var b2 strings.Builder
-		b2.WriteString(s[1:])
-		*d = Dict(b2)
-		return s[1:]
+func (d *Dict) JSON(b *strings.Builder) {
+	b.WriteByte('{')
+	for i, x := range *d {
+		if i&1 == 0 {
+			if i != 0 {
+				b.WriteByte(',')
+			}
+		} else {
+			b.WriteByte(':')
+		}
+		x.JSON(b)
 	}
-	return s
+	b.WriteByte('}')
 }

@@ -16,15 +16,13 @@ func NewTupleFromSlice(slice []Object) Tuple {
 func (t Tuple) Len() int         { return len(t) }
 func (t Tuple) Get(i int) Object { return t[i] }
 
-func (t Tuple) String() string {
-	var b strings.Builder
+func (t Tuple) JSON(b *strings.Builder) {
 	b.WriteByte('[')
 	for i, o := range t {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(o.String())
+		o.JSON(b)
 	}
 	b.WriteByte(']')
-	return b.String()
 }

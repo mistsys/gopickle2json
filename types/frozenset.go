@@ -7,22 +7,22 @@ package types
 import "strings"
 
 // FrozenSet represents a Python "frozenset" (builtin type).
-type FrozenSet string
+type FrozenSet []Object
 
 // NewFrozenSetFromSlice makes and returns a new FrozenSet initialized
 // with the elements of the given slice.
 func NewFrozenSetFromSlice(slice []Object) FrozenSet {
+	return FrozenSet(slice)
+}
+
+func (f FrozenSet) JSON(b *strings.Builder) {
 	// we represent a FrozenSet as a list in JSON
-	var b strings.Builder
 	b.WriteByte('[')
-	for i, o := range slice {
+	for i, o := range f {
 		if i != 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(o.String())
+		o.JSON(b)
 	}
 	b.WriteByte(']')
-	return FrozenSet(b.String())
 }
-
-func (f FrozenSet) String() string { return string(f) }
