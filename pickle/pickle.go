@@ -24,7 +24,7 @@ type Unpickler struct {
 	currentFrame   []byte // nil, or unread portion of current frame
 	stack          []types.Object
 	metaStack      [][]types.Object
-	memo           map[int]types.Object // TODO try int32 indexes
+	memo           map[uint32]types.Object
 	ram            []types.Object
 	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(types.Object) (types.Object, error)
@@ -37,7 +37,7 @@ type Unpickler struct {
 func NewUnpickler(in []byte) Unpickler {
 	return Unpickler{
 		in:   in,
-		memo: make(map[int]types.Object, 256+128),
+		memo: make(map[uint32]types.Object, 256+128),
 	}
 }
 
@@ -406,11 +406,11 @@ func loadInt(u *Unpickler) error {
 		u.append(types.NewBool(true))
 		return nil
 	}
-	i, err := strconv.Atoi(data)
+	i, err := strconv.ParseInt(data, 10, 64)
 	if err != nil {
 		return err
 	}
-	u.append(types.NewInt(int64(i)))
+	u.append(types.NewInt(i))
 	return nil
 }
 
@@ -1162,11 +1162,11 @@ func loadGet(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i, err := strconv.Atoi(line)
+	i, err := strconv.ParseUint(line, 10, 32)
 	if err != nil {
 		return err
 	}
-	u.append(u.memo[i])
+	u.append(u.memo[uint32(i)])
 	return nil
 }
 
@@ -1176,7 +1176,7 @@ func loadBinGet(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.memo[int(i)])
+	u.append(u.memo[uint32(i)])
 	return nil
 }
 
@@ -1186,7 +1186,7 @@ func loadLongBinGet(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i := int(binary.LittleEndian.Uint32(buf))
+	i := binary.LittleEndian.Uint32(buf)
 	u.append(u.memo[i])
 	return nil
 }
@@ -1197,14 +1197,11 @@ func loadPut(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i, err := strconv.Atoi(line)
+	i, err := strconv.ParseUint(line, 10, 32)
 	if err != nil {
 		return err
 	}
-	if i < 0 {
-		return fmt.Errorf("negative PUT argument")
-	}
-	u.memo[i], err = u.stackLast()
+	u.memo[uint32(i)], err = u.stackLast()
 	return err
 }
 
@@ -1214,7 +1211,7 @@ func loadBinPut(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.memo[int(i)], err = u.stackLast()
+	u.memo[uint32(i)], err = u.stackLast()
 	return err
 }
 
@@ -1224,7 +1221,7 @@ func loadLongBinPut(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	i := int(binary.LittleEndian.Uint32(buf))
+	i := binary.LittleEndian.Uint32(buf)
 	u.memo[i], err = u.stackLast()
 	return err
 }
@@ -1235,7 +1232,7 @@ func loadMemoize(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.memo[len(u.memo)] = value
+	u.memo[uint32(len(u.memo))] = value
 	return nil
 }
 
