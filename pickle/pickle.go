@@ -1118,7 +1118,7 @@ func loadStackGlobal(u *Unpickler) error {
 		return fmt.Errorf("STACK_GLOBAL requires str module: %#v", rawModule)
 	}
 
-	class, err := u.findClass(string(module), string(name))
+	class, err := u.findClass(module.String(), name.String())
 	if err != nil {
 		return err
 	}
@@ -1473,7 +1473,7 @@ func loadBuild(u *Unpickler) error {
 					if !keyOk {
 						return fmt.Errorf("BUILD requires string slot state keys")
 					}
-					err := instSa.PySetAttr(string(sk), entry.Value)
+					err := instSa.PySetAttr(sk.String(), entry.Value)
 					if err != nil {
 						return err
 					}
