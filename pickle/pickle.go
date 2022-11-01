@@ -59,13 +59,14 @@ func (r *bytereader) ReadByte() (byte, error) {
 }
 
 type Unpickler struct {
-	r              reader
-	proto          byte
-	currentFrame   *bytes.Reader
-	stack          []types.Object
-	metaStack      [][]types.Object
-	memo           map[int]types.Object
-	strings        map[string]types.String
+	r            reader
+	proto        byte
+	currentFrame *bytes.Reader
+	stack        []types.Object
+	metaStack    [][]types.Object
+	memo         map[int]types.Object
+	strings      map[string]types.String // small strings (hopefully repeated)
+	// NOTE: I also tried memoizing small ints, but it made performance slightly worse
 	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(interface{}) (types.Object, error)
 	GetExtension   func(code int) (types.Object, error)
