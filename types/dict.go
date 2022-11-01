@@ -23,6 +23,7 @@ var _ DictSetter = &Dict{}
 // NewDict makes and returns a new empty Dict.
 func NewDict() *Dict {
 	var d strings.Builder
+	d.WriteByte('-')
 	d.WriteByte('{')
 	return (*Dict)(&d)
 }
@@ -30,7 +31,10 @@ func NewDict() *Dict {
 // Set sets into the Dict the given key/value pair.
 func (d *Dict) Set(key, value Object) {
 	b := (*strings.Builder)(d)
-	if b.Len() != 1 {
+	k := key.String()
+	v := value.String()
+	b.Grow(1 + len(k) + 1 + len(v))
+	if b.Len() > 2 {
 		b.WriteByte(',')
 	}
 	b.WriteString(key.String())
@@ -39,5 +43,16 @@ func (d *Dict) Set(key, value Object) {
 }
 
 func (d *Dict) String() string {
-	return (*strings.Builder)(d).String() + "}"
+	b := (*strings.Builder)(d)
+	s := b.String()
+	if s[0] == '-' {
+		// add the terminating '}' and overwrite the builder
+		b.WriteByte('}')
+		s = b.String()
+		var b2 strings.Builder
+		b2.WriteString(s[1:])
+		*d = Dict(b2)
+		return s[1:]
+	}
+	return s
 }
