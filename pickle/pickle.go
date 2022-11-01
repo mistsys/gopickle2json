@@ -907,7 +907,7 @@ func loadEmptyList(u *Unpickler) error {
 
 // push empty dict
 func loadEmptyDict(u *Unpickler) error {
-	u.append(types.NewDict())
+	u.append(types.NewDict(0))
 	return nil
 }
 
@@ -943,8 +943,8 @@ func loadDict(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	d := types.NewDict()
 	itemsLen := len(items)
+	d := types.NewDict(itemsLen / 2)
 	for i := 0; i < itemsLen; i += 2 {
 		d.Set(items[i], items[i+1])
 	}
@@ -1394,6 +1394,7 @@ func loadSetItems(u *Unpickler) error {
 		return fmt.Errorf("SETITEMS requires DictSetter")
 	}
 	itemsLen := len(items)
+	dict.Grow(itemsLen / 2)
 	for i := 0; i < itemsLen; i += 2 {
 		dict.Set(items[i], items[i+1])
 	}
@@ -1415,6 +1416,7 @@ func loadAddItems(u *Unpickler) error {
 	if !setOk {
 		return fmt.Errorf("ADDITEMS requires SetAdder")
 	}
+	set.Grow(len(items))
 	for _, item := range items {
 		set.Add(item)
 	}

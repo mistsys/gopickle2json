@@ -11,6 +11,7 @@ import (
 // ListAppender is implemented by any value that exhibits a list-like
 // behaviour, allowing arbitrary values to be appended.
 type ListAppender interface {
+	Grow(int)
 	Append(v Object)
 	Object
 }
@@ -30,6 +31,15 @@ func NewList() *List {
 // of the given slice.
 func NewListFromSlice(slice []Object) *List {
 	return (*List)(&slice)
+}
+
+func (l *List) Grow(n int) {
+	ln := len(*l)
+	h := cap(*l) - ln
+	if n <= h {
+		return
+	}
+	*l = append(*l, make([]Object, n)...)[:ln] // compiler is usually smart and realises this is a slice extension
 }
 
 // Append appends one element to the end of the List.

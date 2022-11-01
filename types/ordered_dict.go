@@ -45,7 +45,11 @@ var _ PyDictSettable = &OrderedDict{}
 
 // NewOrderedDict makes and returns a new empty OrderedDict.
 func NewOrderedDict() *OrderedDict {
-	return (*OrderedDict)(NewDict())
+	return (*OrderedDict)(NewDict(0))
+}
+
+func (o *OrderedDict) Grow(n int) {
+	(*Dict)(o).Grow(n)
 }
 
 // Set sets into the OrderedDict the given key/value pair. If the key does not
