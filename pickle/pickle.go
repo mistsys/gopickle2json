@@ -59,14 +59,12 @@ func (r *bytereader) ReadByte() (byte, error) {
 }
 
 type Unpickler struct {
-	r            reader
-	proto        byte
-	currentFrame *bytes.Reader
-	stack        []types.Object
-	metaStack    [][]types.Object
-	memo         map[int]types.Object    // TODO try int32 indexes
-	strings      map[string]types.String // small strings (hopefully repeated)
-	// NOTE: I also tried memoizing small ints, but it made performance slightly worse
+	r              reader
+	proto          byte
+	currentFrame   *bytes.Reader
+	stack          []types.Object
+	metaStack      [][]types.Object
+	memo           map[int]types.Object // TODO try int32 indexes
 	ram            []types.Object
 	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(interface{}) (types.Object, error)
@@ -81,9 +79,8 @@ func NewUnpickler(ior io.Reader) Unpickler {
 		r = &bytereader{Reader: ior}
 	}
 	return Unpickler{
-		r:       r,
-		memo:    make(map[int]types.Object, 256+128),
-		strings: make(map[string]types.String),
+		r:    r,
+		memo: make(map[int]types.Object, 256+128),
 	}
 }
 
@@ -115,20 +112,6 @@ func (u *Unpickler) Load() (types.Object, error) {
 			return nil, err
 		}
 	}
-}
-
-func (u *Unpickler) NewString(buf []byte) types.String {
-	if len(buf) >= 64 {
-		// it's unlikely such a string is going to be reused
-		return types.NewString(buf)
-	}
-	// see if we have seen this string before
-	if str, ok := u.strings[string(buf)]; ok { // note: go 1.19 does a good job and avoids copying the buf during lookup
-		return str
-	}
-	str := types.NewString(buf)
-	u.strings[string(buf)] = str
-	return str
 }
 
 type pickleStop struct{ value types.Object }
@@ -653,7 +636,7 @@ func loadString(u *Unpickler) error {
 		return fmt.Errorf("the STRING opcode argument must be quoted")
 	}
 	data = data[1 : len(data)-1]
-	u.append(u.NewString(data))
+	u.append(types.NewString(data))
 	return nil
 }
 
@@ -676,7 +659,7 @@ func loadBinString(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.NewString(data))
+	u.append(types.NewString(data))
 	return nil
 }
 
@@ -701,7 +684,7 @@ func loadUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.NewString(line[:len(line)-1]))
+	u.append(types.NewString(line[:len(line)-1]))
 	return nil
 }
 
@@ -716,7 +699,7 @@ func loadBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.NewString(buf))
+	u.append(types.NewString(buf))
 	return nil
 }
 
@@ -734,7 +717,7 @@ func loadBinUnicode8(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.NewString(buf))
+	u.append(types.NewString(buf))
 	return nil
 }
 
@@ -814,7 +797,7 @@ func loadShortBinString(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.NewString(data))
+	u.append(types.NewString(data))
 	return nil
 }
 
@@ -842,7 +825,7 @@ func loadShortBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(u.NewString(buf))
+	u.append(types.NewString(buf))
 	return nil
 }
 
