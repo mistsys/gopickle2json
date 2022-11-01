@@ -5,11 +5,11 @@
 package types
 
 import (
-	"strconv"
+	"bytes"
 	"strings"
 )
 
-type String string
+type String []byte
 
 func NewString(s []byte) String {
 	// do we need to escape this string?
@@ -20,7 +20,7 @@ func NewString(s []byte) String {
 	}
 
 	// we only need quotes around the string
-	return String("\"" + string(s) + "\"")
+	return String(s)
 }
 
 func escapedString(s []byte) String {
@@ -28,7 +28,7 @@ func escapedString(s []byte) String {
 	// only ascii control chars (<0x20), \ and " need to be escaped, and some control chars can use \[bfnrt/] instead of \u00xx encoding.
 	// (why \/ might be used I don't know, but it's there on json.org's flow chart
 	// We used to use "%q" printf formatting, but it's a huge hot spot (30% of CPU time) since every single field name gets encoded this way
-	var buf strings.Builder
+	var buf = bytes.NewBuffer(make([]byte, 0, len(s)*2)) // *2 is a rough guess
 	buf.WriteByte('x')
 	buf.WriteByte('"')
 	for _, r := range string(s) {
@@ -70,64 +70,20 @@ func escapedString(s []byte) String {
 		}
 	}
 	buf.WriteByte('"')
-	return String(buf.String())
+	return String(buf.Bytes())
 }
 
 const hex = "0123456789abcdef"
 
 // return the escaped string
 func (s String) JSON(b *strings.Builder) {
-	str := string(s)
-	if str[0] != '"' {
-		// the string has escaped characters in it
-		str = str[1:]
-	}
-	b.WriteString(str)
+	b.WriteByte('"')
+	b.Write(([]byte)(s))
+	b.WriteByte('"')
 }
 
 // return the unescaped string (useful every once in a while)
 func (s String) String() string {
-	n := len(s)
-	if n < 2 { // should never happen
-		return string(s)
-	}
-	if s[0] == '"' {
-		// no escaping happened, just strip off the quotes
-		return string(s)[1 : n-1]
-	}
-	// we need to unescape the text
-	var buf strings.Builder
-	for i := 2; i < n-1; i++ {
-		c := s[i]
-		if c != '\\' {
-			buf.WriteByte(c)
-			continue
-		}
-		i++
-		c = s[i]
-		switch c {
-		case 'b':
-			buf.WriteByte('\b')
-			continue
-		case 'f':
-			buf.WriteByte('\f')
-			continue
-		case 'n':
-			buf.WriteByte('\n')
-			continue
-		case 'r':
-			buf.WriteByte('\r')
-			continue
-		case 't':
-			buf.WriteByte('\t')
-			continue
-		}
-		// must be '\uxxxx'
-		x, err := strconv.ParseUint(string(s)[1:5], 16, 16)
-		if err != nil {
-			panic("can't unescape string " + string(s) + ": " + err.Error())
-		}
-		buf.WriteRune(rune(x))
-	}
-	return buf.String()
+	return string(s)
+	// NOTE: in git history is an un-escaper, should that ever be useful again
 }
