@@ -8,21 +8,27 @@ import (
 	"strings"
 )
 
-type String []byte
-type StringNeedingEscaping []byte
+type String interface {
+	String() string
+	imAString() // since String() is quite common, add a dummy method unlikely to collide
+	Object
+}
+
+type SimpleString []byte
+type EscapedString []byte
 
 func NewString(s []byte) Object {
 	// do we need to escape this string?
 	for _, r := range s {
 		if r < 0x20 || r == '"' || r == '\\' || r >= 0x80 {
-			return StringNeedingEscaping(s)
+			return EscapedString(s)
 		}
 	}
 	// the entire string is escape-free (a common case)
-	return String(s)
+	return SimpleString(s)
 }
 
-func (s StringNeedingEscaping) JSON(b *strings.Builder) {
+func (s EscapedString) JSON(b *strings.Builder) {
 	b.WriteByte('"')
 	// the rule in JSON in that JSON text must be UTF-8, or if you must, use unicode \uxxxx notation.
 	// only ascii control chars (<0x20), \ and " need to be escaped, and some control chars can use \[bfnrt/] instead of \u00xx encoding.
@@ -70,14 +76,21 @@ func (s StringNeedingEscaping) JSON(b *strings.Builder) {
 
 const hex = "0123456789abcdef"
 
-// return the escaped string
-func (s String) JSON(b *strings.Builder) {
+// return the string in quotes
+func (s SimpleString) JSON(b *strings.Builder) {
 	b.WriteByte('"')
 	b.Write(([]byte)(s))
 	b.WriteByte('"')
 }
 
 // return the unescaped string (useful every once in a while)
-func (s String) String() string {
+func (s SimpleString) String() string {
 	return string(s)
 }
+
+func (s EscapedString) String() string {
+	return string(s)
+}
+
+func (SimpleString) imAString()  {}
+func (EscapedString) imAString() {}
