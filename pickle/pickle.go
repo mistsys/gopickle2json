@@ -12,6 +12,7 @@ import (
 	"math"
 	"math/big"
 	"strconv"
+	"unsafe"
 
 	"github.com/mistsys/gopickle2json/types"
 	"github.com/nsd20463/bytesconv"
@@ -145,8 +146,10 @@ func (u *Unpickler) readLineBytes() ([]byte, error) {
 	return out, err
 }
 
-// return the line as a string, without the terminating \n (which is required to be present)
-func (u *Unpickler) readLine() (string, error) {
+// return the line as an unsafe string, without the terminating \n (which is required to be present)
+// The caller MUST NOT do anything which would hold onto the string after the current call to Unpickler.Load() finishes.
+// In return, this avoids copying a []byte to a string buffer.
+func (u *Unpickler) unsafeReadLine() (string, error) {
 	var out []byte
 	var err error
 	if len(u.currentFrame) != 0 {
@@ -154,7 +157,9 @@ func (u *Unpickler) readLine() (string, error) {
 	} else {
 		out, u.in, err = readLine(u.in)
 	}
-	return string(out), err
+	// construct the string without copying. we hold the caller to the promise that they don't store the returned string
+	// after the current Unpickler.Load() call
+	return *(*string)(unsafe.Pointer(&out)), err
 }
 
 func readLine(in []byte) (line []byte, out []byte, err error) {
@@ -394,7 +399,7 @@ func loadTrue(u *Unpickler) error {
 
 // push integer or bool; decimal string argument
 func loadInt(u *Unpickler) error {
-	data, err := u.readLine()
+	data, err := u.unsafeReadLine()
 	if err != nil {
 		return err
 	}
@@ -446,15 +451,16 @@ func loadBinInt2(u *Unpickler) error {
 
 // push long; decimal string argument
 func loadLong(u *Unpickler) error {
-	sub, err := u.readLine()
+	sub, err := u.unsafeReadLine()
 	if err != nil {
 		return err
 	}
-	if len(sub) == 0 {
+	n := len(sub)
+	if n == 0 {
 		return fmt.Errorf("invalid long data")
 	}
-	if sub[len(sub)-1] == 'L' {
-		sub = sub[0 : len(sub)-1]
+	if sub[n-1] == 'L' {
+		sub = sub[:n-1]
 	}
 	i, err := strconv.ParseInt(sub, 10, 64)
 	if err == nil {
@@ -541,7 +547,7 @@ func decodeLong(bytes []byte) types.Object {
 
 // push float object; decimal string argument
 func loadFloat(u *Unpickler) error {
-	line, err := u.readLine()
+	line, err := u.unsafeReadLine()
 	if err != nil {
 		return err
 	}
@@ -880,17 +886,18 @@ func loadDict(u *Unpickler) error {
 
 // build & push class instance
 func loadInst(u *Unpickler) error {
-	module, err := u.readLine()
+	// NOTE: we want readLineBytes() which returns a []byte, and then cast (copy) to string. If we used readLine() which returns an unsafe string, we could be passing a mutable (after the outer call returns) string to a user define callback function u.FindClass
+	module, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
 
-	name, err := u.readLine()
+	name, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
 
-	class, err := u.findClass(module, name)
+	class, err := u.findClass(string(module), string(name))
 	if err != nil {
 		return err
 	}
@@ -1003,17 +1010,18 @@ func loadNewObjEx(u *Unpickler) error {
 
 // push self.find_class(modname, name); 2 string args
 func loadGlobal(u *Unpickler) error {
-	module, err := u.readLine()
+	// NOTE: we want readLineBytes() which returns a []byte, and then cast (copy) to string. If we used readLine() which returns an unsafe string, we could be passing a mutable (after the outer call returns) string to a user define callback function u.FindClass
+	module, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
 
-	name, err := u.readLine()
+	name, err := u.readLineBytes()
 	if err != nil {
 		return err
 	}
 
-	class, err := u.findClass(module, name)
+	class, err := u.findClass(string(module), string(name))
 	if err != nil {
 		return err
 	}
@@ -1158,7 +1166,7 @@ func loadDup(u *Unpickler) error {
 
 // push item from memo on stack; index is string arg
 func loadGet(u *Unpickler) error {
-	line, err := u.readLine()
+	line, err := u.unsafeReadLine()
 	if err != nil {
 		return err
 	}
@@ -1193,7 +1201,7 @@ func loadLongBinGet(u *Unpickler) error {
 
 // store stack top in memo; index is string arg
 func loadPut(u *Unpickler) error {
-	line, err := u.readLine()
+	line, err := u.unsafeReadLine()
 	if err != nil {
 		return err
 	}
