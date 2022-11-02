@@ -22,15 +22,17 @@ type List []Object
 var _ ListAppender = &List{}
 
 // NewList makes and returns a new empty List.
-func NewList() *List {
-	var l List
-	return &l
+func NewList(ram *[]Object) *List {
+	l := (*List)(ram)
+	return l
 }
 
 // NewListFromSlice makes and returns a new List initialized with the elements
 // of the given slice.
-func NewListFromSlice(slice []Object) *List {
-	return (*List)(&slice)
+func NewListFromSlice(slice []Object, ram *[]Object) *List {
+	l := (*List)(ram)
+	*l = slice
+	return l
 }
 
 // Append appends one element to the end of the List.

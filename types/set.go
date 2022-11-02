@@ -20,9 +20,9 @@ type Set []Object
 var _ SetAdder = &Set{}
 
 // NewSet makes and returns a new empty Set.
-func NewSet() *Set {
-	var s Set
-	return &s
+func NewSet(ram *[]Object) *Set {
+	s := (*Set)(ram)
+	return s
 }
 
 // Add adds one element to the Set.

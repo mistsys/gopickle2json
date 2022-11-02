@@ -864,7 +864,7 @@ func loadTuple3(u *Unpickler) error {
 
 // push empty list
 func loadEmptyList(u *Unpickler) error {
-	u.append(types.NewList())
+	u.append(types.NewList(u.alloc_dram()))
 	return nil
 }
 
@@ -876,7 +876,7 @@ func loadEmptyDict(u *Unpickler) error {
 
 // push empty set on the stack
 func loadEmptySet(u *Unpickler) error {
-	u.append(types.NewSet())
+	u.append(types.NewSet(u.alloc_dram()))
 	return nil
 }
 
@@ -896,7 +896,7 @@ func loadList(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewListFromSlice(items))
+	u.append(types.NewListFromSlice(items, u.alloc_dram()))
 	return nil
 }
 
