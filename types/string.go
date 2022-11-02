@@ -29,8 +29,6 @@ func escapedString(s []byte) String {
 	// (why \/ might be used I don't know, but it's there on json.org's flow chart
 	// We used to use "%q" printf formatting, but it's a huge hot spot (30% of CPU time) since every single field name gets encoded this way
 	var buf = bytes.NewBuffer(make([]byte, 0, len(s)*2)) // *2 is a rough guess
-	buf.WriteByte('x')
-	buf.WriteByte('"')
 	for _, r := range string(s) {
 		switch r {
 		case '"':
@@ -69,7 +67,6 @@ func escapedString(s []byte) String {
 			}
 		}
 	}
-	buf.WriteByte('"')
 	return String(buf.Bytes())
 }
 
