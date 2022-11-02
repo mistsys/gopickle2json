@@ -27,6 +27,8 @@ type Unpickler struct {
 	metaStack      [][]types.Object
 	memo           map[uint32]types.Object
 	ram            []types.Object
+	sram           [][]byte
+	dram           [][]types.Object
 	FindClass      func(module, name string) (types.Object, error)
 	PersistentLoad func(types.Object) (types.Object, error)
 	GetExtension   func(code int) (types.Object, error)
@@ -44,9 +46,6 @@ func NewUnpickler(in []byte) Unpickler {
 func (u *Unpickler) Load() (types.Object, error) {
 	u.metaStack = make([][]types.Object, 0, 16)
 	u.memo = make(map[uint32]types.Object, 256+128)
-	u.ram = make([]types.Object, 16*128)
-	u.ram = u.ram[:cap(u.ram)]
-	u.stack, u.ram = u.ram[0:0:16], u.ram[16:]
 	defer func(u *Unpickler) {
 		u.in = nil
 		u.currentFrame = nil
@@ -54,6 +53,8 @@ func (u *Unpickler) Load() (types.Object, error) {
 		u.metaStack = nil
 		u.memo = nil
 		u.ram = nil
+		u.sram = nil
+		u.dram = nil
 		u.proto = 0
 	}(u)
 
@@ -83,6 +84,30 @@ type pickleStop struct{ value types.Object }
 func (p pickleStop) Error() string { return "STOP" }
 
 var _ error = pickleStop{}
+
+func (u *Unpickler) alloc_sram() *[]byte {
+	if len(u.sram) == 0 {
+		u.sram = make([][]byte, 256)
+		u.sram = u.sram[:cap(u.sram)]
+	}
+	alloc := &u.sram[0]
+	u.sram = u.sram[1:]
+	return alloc
+}
+
+func (u *Unpickler) alloc_dram() *[]types.Object {
+	if len(u.dram) == 0 {
+		u.dram = make([][]types.Object, 256)
+		u.dram = u.dram[:cap(u.dram)]
+	}
+	alloc := &u.dram[0]
+	u.dram = u.dram[1:]
+	return alloc
+}
+
+func (u *Unpickler) NewString(s []byte) types.Object {
+	return types.NewString(s, u.alloc_sram())
+}
 
 func (u *Unpickler) findClass(module, name string) (types.Object, error) {
 	switch module {
@@ -360,7 +385,7 @@ func loadPersId(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	result, err := u.PersistentLoad(types.NewString(line))
+	result, err := u.PersistentLoad(u.NewString(line))
 	if err != nil {
 		return err
 	}
@@ -586,7 +611,7 @@ func loadString(u *Unpickler) error {
 		return fmt.Errorf("the STRING opcode argument must be quoted")
 	}
 	data = data[1 : len(data)-1] // remove the quotes
-	u.append(types.NewString(data))
+	u.append(u.NewString(data))
 	return nil
 }
 
@@ -609,7 +634,7 @@ func loadBinString(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(data))
+	u.append(u.NewString(data))
 	return nil
 }
 
@@ -634,7 +659,7 @@ func loadUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(line))
+	u.append(u.NewString(line))
 	return nil
 }
 
@@ -649,7 +674,7 @@ func loadBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(buf))
+	u.append(u.NewString(buf))
 	return nil
 }
 
@@ -667,7 +692,7 @@ func loadBinUnicode8(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(buf))
+	u.append(u.NewString(buf))
 	return nil
 }
 
@@ -747,7 +772,7 @@ func loadShortBinString(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(data))
+	u.append(u.NewString(data))
 	return nil
 }
 
@@ -775,7 +800,7 @@ func loadShortBinUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	u.append(types.NewString(buf))
+	u.append(u.NewString(buf))
 	return nil
 }
 
@@ -845,7 +870,7 @@ func loadEmptyList(u *Unpickler) error {
 
 // push empty dict
 func loadEmptyDict(u *Unpickler) error {
-	u.append(types.NewDict(0))
+	u.append(types.NewDict(0, u.alloc_dram()))
 	return nil
 }
 
@@ -882,7 +907,7 @@ func loadDict(u *Unpickler) error {
 		return err
 	}
 	itemsLen := len(items)
-	d := types.NewDict(itemsLen / 2)
+	d := types.NewDict(itemsLen/2, u.alloc_dram())
 	for i := 0; i < itemsLen; i += 2 {
 		d.Set(items[i], items[i+1])
 	}

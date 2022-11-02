@@ -22,12 +22,12 @@ type Dict []Object
 var _ DictSetter = &Dict{}
 
 // NewDict makes and returns a new empty Dict with room for n items
-func NewDict(n int) *Dict {
-	var d Dict
+func NewDict(n int, ram *[]Object) *Dict {
+	d := (*Dict)(ram)
 	if n > 0 {
-		d = make(Dict, 0, 2*n)
+		*d = make(Dict, 0, 2*n)
 	}
-	return &d
+	return d
 }
 
 // Set sets into the Dict the given key/value pair.

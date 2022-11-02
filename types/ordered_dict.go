@@ -45,7 +45,8 @@ var _ PyDictSettable = &OrderedDict{}
 
 // NewOrderedDict makes and returns a new empty OrderedDict.
 func NewOrderedDict() *OrderedDict {
-	return (*OrderedDict)(NewDict(0))
+	var ram []Object
+	return (*OrderedDict)(NewDict(0, &ram))
 }
 
 // Set sets into the OrderedDict the given key/value pair. If the key does not
