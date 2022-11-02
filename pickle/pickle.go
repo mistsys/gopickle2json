@@ -37,19 +37,25 @@ type Unpickler struct {
 
 func NewUnpickler(in []byte) Unpickler {
 	return Unpickler{
-		in:   in,
-		memo: make(map[uint32]types.Object, 256+128),
+		in: in,
 	}
 }
 
 func (u *Unpickler) Load() (types.Object, error) {
 	u.metaStack = make([][]types.Object, 0, 16)
-	if len(u.ram) < 16 {
-		u.ram = make([]types.Object, 16*128)
-		u.ram = u.ram[:cap(u.ram)]
-	}
+	u.memo = make(map[uint32]types.Object, 256+128)
+	u.ram = make([]types.Object, 16*128)
+	u.ram = u.ram[:cap(u.ram)]
 	u.stack, u.ram = u.ram[0:0:16], u.ram[16:]
-	u.proto = 0
+	defer func(u *Unpickler) {
+		u.in = nil
+		u.currentFrame = nil
+		u.stack = nil
+		u.metaStack = nil
+		u.memo = nil
+		u.ram = nil
+		u.proto = 0
+	}(u)
 
 	for {
 		opcode, err := u.readOne()
