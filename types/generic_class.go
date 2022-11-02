@@ -23,7 +23,7 @@ type GenericObject struct {
 }
 
 func NewGenericClass(module, name String) *GenericClass {
-	return &GenericClass{Module: string(module), Name: string(name)}
+	return &GenericClass{Module: module.String(), Name: name.String()}
 }
 
 func (g *GenericClass) PyNew(args ...Object) (Object, error) {
