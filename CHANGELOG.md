@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2022-11-01
+### Changed
+- Lots of performance enhancements. This is roughly 4x faster and uses 1/8th the
+  number of memory allocations than 0.2.2 does (and about 1/3 the memory).
+- API now takes []byte as argument, not io.Reader. This slice must not be
+  mutated until operations (like calling JSON method) on the returned types.Object
+  are completed.
+
 ## [0.2.2] - 2022-10-31
 ### Fixed
 - Python tuples become JSON lists.
