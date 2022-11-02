@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2022-11-01
+### Changed
+- Better handling of escaped strings.
+
 ## [0.3.0] - 2022-11-01
 ### Changed
 - Lots of performance enhancements. This is roughly 4x faster and uses 1/8th the
