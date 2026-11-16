@@ -671,7 +671,7 @@ func loadUnicode(u *Unpickler) error {
 
 // convert raw-unicode-escaped encoding into UTF-8
 // note I can't find a canned function in go stdlib to do this, nor in golang.org/x/text
-func decode_raw_unicode_escaped(in []byte) ([]byte, error) {
+func decode_raw_unicode_escaped(in []byte) (out []byte, err error) {
 	// python's raw-unicide-escaped is an interesting encoding.
 	// All 1-byte values are encoded as-is except for \, which is escaped as \\. This includes 128-255.
 	// All 2 and 4-byte unicode values are escaped as \u#### or \U########.
@@ -691,20 +691,31 @@ func decode_raw_unicode_escaped(in []byte) ([]byte, error) {
 
 	inin := in // save for errors
 
+	defer func() {
+		if err == nil {
+			// check `out` for overlong UTF-8 sequences. these must generate an error
+			if !utf8.Valid(out) {
+				err = fmt.Errorf(`invalid UTF-8 decoding of raw-unicode-escaped %q`, inin)
+			}
+		}
+	}()
+
 	// estimate how large the output will be (doesn't have to be perfect)
 	num_u := bytes.Count(in, []byte("\\u"))
 	num_U := bytes.Count(in, []byte("\\U"))
 	num_bs := bytes.Count(in, []byte("\\\\"))
 	guess := len(in) - num_bs - 2*num_u - 2*num_U
-	out := make([]byte, 0, guess)
+	out = make([]byte, 0, guess)
 	for len(in) > 0 {
 		c := in[0]
+
 		if c != '\\' {
 			out = utf8.AppendRune(out, rune(c))
 			in = in[1:]
 			continue
 		}
 
+		// c is '\\'
 		if len(in) < 2 {
 			return out, fmt.Errorf(`unbalanced \ in raw-unicode-escaped %q`, inin)
 		}
@@ -721,12 +732,39 @@ func decode_raw_unicode_escaped(in []byte) ([]byte, error) {
 				return out, fmt.Errorf(`truncated \u 2-byte hex code in raw-unicode-escaped %q`, inin)
 			}
 			var v [2]byte
-			if _, err := hex.Decode(v[:], in[:4]); err != nil {
+			if _, err = hex.Decode(v[:], in[:4]); err != nil {
 				return out, fmt.Errorf(`invalid \u 2-byte hex code in raw-unicode-escaped %q: %w`, inin, err)
 			}
 			r := rune(binary.BigEndian.Uint16(v[:]))
 			if !utf8.ValidRune(r) {
-				return out, fmt.Errorf(`non-UTF-8 \u 2-byte hex code 0x%x in raw-unicode-escaped %q`, uint(r), inin)
+				// is it high half of a UTF-16 surrogate pair? if so it must immediately be followed by the other half, also encoded as \u####
+				if 0xd800 <= r && r < 0xdc00 {
+					if len(in) < 4+6 {
+						return out, fmt.Errorf(`truncated surrogate pair at \u%04x in raw-unicode-escaped %q`, uint(r), inin)
+					}
+					if in[4] != '\\' || in[5] != 'u' {
+						return out, fmt.Errorf(`incomplete surrogate pair at \u%04x in raw-unicode-escaped %q`, uint(r), inin)
+					}
+					var v2 [2]byte
+					if _, err = hex.Decode(v2[:], in[6:10]); err != nil {
+						return out, fmt.Errorf(`invalid \u 2-byte hex code in raw-unicode-escaped %q: %w`, inin, err)
+					}
+					r2 := rune(binary.BigEndian.Uint16(v2[:]))
+					if r2 < 0xdc00 || 0xe000 <= r2 {
+						return out, fmt.Errorf(`invalid low half of surrogate pair at \u%04x\u%04x in raw-unicode-escaped %q`, uint(r), uint(r2), inin)
+					}
+					// recombine the two halfs and continue to process r
+					r = (r&0x3ff)<<10 | (r2 & 0x3ff)
+					in = in[6:]
+					if !utf8.ValidRune(r) { // a surrogate pair can't decode into another surrogate pair (or other invalid UTF-8)
+						return out, fmt.Errorf(`non-UTF-8 rune 0x%x in surrogate pair in raw-unicode-escaped %q`, uint(r), inin)
+					}
+				} else if 0xdc00 <= r && r < 0xe000 {
+					// this is the low half, but it wasn't preceeded by a high half. give a nice error message for this
+					return out, fmt.Errorf(`stray surrogate low half \u%04x in raw-unicode-escaped %q`, uint(r), inin)
+				} else {
+					return out, fmt.Errorf(`non-UTF-8 \u%04x in raw-unicode-escaped %q`, uint(r), inin)
+				}
 			}
 			out = utf8.AppendRune(out, r)
 			in = in[4:]
@@ -736,12 +774,12 @@ func decode_raw_unicode_escaped(in []byte) ([]byte, error) {
 				return out, fmt.Errorf(`truncated \U 4-byte hex code in raw-unicode-escaped %q`, inin)
 			}
 			var v [4]byte
-			if _, err := hex.Decode(v[:], in[:8]); err != nil {
+			if _, err = hex.Decode(v[:], in[:8]); err != nil {
 				return out, fmt.Errorf(`invalid \U 4-byte hex code in raw-unicode-escaped %q: %w`, inin, err)
 			}
 			r := rune(binary.BigEndian.Uint32(v[:]))
 			if !utf8.ValidRune(r) {
-				return out, fmt.Errorf(`non-UTF-8 \U 4-byte hex code 0x%x in raw-unicode-escaped %q`, uint(r), inin)
+				return out, fmt.Errorf(`non-UTF-8 \U%08x in raw-unicode-escaped %q`, uint(r), inin)
 			}
 			out = utf8.AppendRune(out, r)
 			in = in[8:]
@@ -750,6 +788,7 @@ func decode_raw_unicode_escaped(in []byte) ([]byte, error) {
 			return out, fmt.Errorf(`unknown escape code \%q in raw-unicode-escaped %q`, string(c), inin)
 		}
 	}
+
 	return out, nil
 }
 
