@@ -37,12 +37,42 @@ type Unpickler struct {
 	NextBuffer     func() (types.Object, error)
 	MakeReadOnly   func(types.Object) (types.Object, error)
 	proto          byte
+
+	// configuration
+	bitequal_strings            bool // don't alter strings stored in BINSTRING or BINUNICODE8 and other literal pickled strings. This will copy invalid UTF-8 as-is into the JSON
+	preserve_surrogate_pairs    bool
+	preserve_invalid_surrogates bool
+	output_invalid_utf8         bool // allow the JSON to contain invalid UTF8 (broken surrogate pairs, for example, or whatever garbage came out of the pickled BINSTRING)
 }
 
 func NewUnpickler(in []byte) Unpickler {
 	return Unpickler{
 		in: in,
 	}
+}
+
+// BitEqualStrings configures the Unpickled to copy BINSTRING and BINUNICODE and similiar pickled data straight into JSON
+// without checking it for UTF-8 validity. After unescaping the JSON string you should hold the same bytes as was in the pickled data.
+func (u *Unpickler) BitEqualStrings(enable bool) {
+	u.bitequal_strings = true
+}
+
+// ConvertSurrogatePairs configures the Unpickler to preserve well formatted UTF-16 surrogate pairs as-is.
+// The default behavior is to parse and join surrogate pairs together and encode the 20-bit result in UTF-8,
+// so long as it is valid UTF-8 (not another half of a surrogate pair, or out of range).
+// When convertion is disabled the pair is encoded as-is in JSON as "\ud8HH\udcHH", for example (full range is d8-df).
+func (u *Unpickler) ConvertSurrogatePairs(enable bool) {
+	u.preserve_surrogate_pairs = !enable
+}
+
+// PreserveInvalidSurrogates configures the Unpickler to pass through unchanged any invalid UTF-16 surrogate pair,
+// be they stray unpaired surrogates or surrogates containing surrogates. Only truncation causes an error.
+// These invalid surrogates are encoded as "\udHHH" in JSON.
+// The default behavior is to return an error when unpicking invalid surrogates, rather than pass them further on.
+func (u *Unpickler) PreserveInvalidSurrogates(enable bool) {
+	u.preserve_invalid_surrogates = enable
+	// enable output_invalid_utf8
+	u.output_invalid_utf8 = u.output_invalid_utf8 || u.preserve_invalid_surrogates
 }
 
 func (u *Unpickler) Load() (types.Object, error) {
@@ -108,7 +138,7 @@ func (u *Unpickler) alloc_dram() *[]types.Object {
 }
 
 func (u *Unpickler) NewString(s []byte) types.Object {
-	return types.NewString(s, u.alloc_sram())
+	return types.NewString(s, u.alloc_sram(), u.bitequal_strings)
 }
 
 func (u *Unpickler) findClass(module, name string) (types.Object, error) {
@@ -661,7 +691,7 @@ func loadUnicode(u *Unpickler) error {
 	if err != nil {
 		return err
 	}
-	str, err := decode_raw_unicode_escaped(line)
+	str, err := u.decode_raw_unicode_escaped(line)
 	if err != nil {
 		return err
 	}
@@ -671,7 +701,7 @@ func loadUnicode(u *Unpickler) error {
 
 // convert raw-unicode-escaped encoding into UTF-8
 // note I can't find a canned function in go stdlib to do this, nor in golang.org/x/text
-func decode_raw_unicode_escaped(in []byte) (out []byte, err error) {
+func (u *Unpickler) decode_raw_unicode_escaped(in []byte) (out []byte, err error) {
 	// python's raw-unicide-escaped is an interesting encoding.
 	// All 1-byte values are encoded as-is except for \, which is escaped as \\. This includes 128-255.
 	// All 2 and 4-byte unicode values are escaped as \u#### or \U########.
@@ -691,8 +721,9 @@ func decode_raw_unicode_escaped(in []byte) (out []byte, err error) {
 
 	inin := in // save for errors
 
+	validate_utf8 := !u.bitequal_strings
 	defer func() {
-		if err == nil {
+		if err == nil && validate_utf8 {
 			// check `out` for overlong UTF-8 sequences. these must generate an error
 			if !utf8.Valid(out) {
 				err = fmt.Errorf(`invalid UTF-8 decoding of raw-unicode-escaped %q`, inin)
@@ -737,7 +768,15 @@ func decode_raw_unicode_escaped(in []byte) (out []byte, err error) {
 			}
 			r := rune(binary.BigEndian.Uint16(v[:]))
 			if !utf8.ValidRune(r) {
-				// is it high half of a UTF-16 surrogate pair? if so it must immediately be followed by the other half, also encoded as \u####
+				if u.preserve_invalid_surrogates && 0xd800 <= r && r < 0xe000 {
+					// don't validate any further, and pass it through to NewString
+					out = append(out, 0xe0|byte(r>>12), 0x80|byte(r>>6)&0x3f, 0x80|byte(r)&0x3f)
+					in = in[4:]
+					validate_utf8 = false // it's not valid UTF-8 anymore, now that it contains a surrogate pair character
+					break
+				}
+
+				// is it the high half of a UTF-16 surrogate pair? if so it must immediately be followed by the other half, also encoded as \u####
 				if 0xd800 <= r && r < 0xdc00 {
 					if len(in) < 4+6 {
 						return out, fmt.Errorf(`truncated surrogate pair at \u%04x in raw-unicode-escaped %q`, uint(r), inin)
@@ -753,11 +792,22 @@ func decode_raw_unicode_escaped(in []byte) (out []byte, err error) {
 					if r2 < 0xdc00 || 0xe000 <= r2 {
 						return out, fmt.Errorf(`invalid low half of surrogate pair at \u%04x\u%04x in raw-unicode-escaped %q`, uint(r), uint(r2), inin)
 					}
-					// recombine the two halfs and continue to process r
-					r = (r&0x3ff)<<10 | (r2 & 0x3ff)
-					in = in[6:]
-					if !utf8.ValidRune(r) { // a surrogate pair can't decode into another surrogate pair (or other invalid UTF-8)
-						return out, fmt.Errorf(`non-UTF-8 rune 0x%x in surrogate pair in raw-unicode-escaped %q`, uint(r), inin)
+
+					if u.preserve_surrogate_pairs {
+						// we can't use utf8.AppendRune() because it will replace any SP unicode with an error code. So we have to spell it out by hand
+						out = append(out,
+							0xe0|byte(r>>12), 0x80|byte(r>>6)&0x3f, 0x80|byte(r)&0x3f,
+							0xe0|byte(r2>>12), 0x80|byte(r2>>6)&0x3f, 0x80|byte(r2)&0x3f)
+						in = in[4+6:]
+						validate_utf8 = false // it's not valid UTF-8 anymore, now that it contains a surrogate pair character
+						break
+					} else {
+						// recombine the two halfs and continue to process r
+						r = (r&0x3ff)<<10 | (r2 & 0x3ff)
+						in = in[6:]
+						if !utf8.ValidRune(r) { // a surrogate pair can't decode into another surrogate pair (or other invalid UTF-8)
+							return out, fmt.Errorf(`non-UTF-8 rune 0x%x in surrogate pair in raw-unicode-escaped %q`, uint(r), inin)
+						}
 					}
 				} else if 0xdc00 <= r && r < 0xe000 {
 					// this is the low half, but it wasn't preceeded by a high half. give a nice error message for this

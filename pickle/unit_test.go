@@ -33,8 +33,9 @@ func TestDecodeRawUnicodeEscape(t *testing.T) {
 		{"abc\n123\\", `abc\ud800\udc0a123\\`},
 		{"\000", `\ud800\udc00`},
 	}
+	u := NewUnpickler(nil)
 	for i, test := range tests {
-		out, err := decode_raw_unicode_escaped([]byte(test[1]))
+		out, err := u.decode_raw_unicode_escaped([]byte(test[1]))
 		if err != nil {
 			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) failed: %v", i, test[1], err)
 		} else if string(out) != test[0] {
@@ -68,14 +69,26 @@ func TestInvalidDecodeRawUnicodeEscape(t *testing.T) {
 		`\ud837\udc00`,
 		`\ud837\udfff`,
 	}
+	u := NewUnpickler(nil)
 	for i, test := range tests {
-		out, err := decode_raw_unicode_escaped([]byte(test))
+		out, err := u.decode_raw_unicode_escaped([]byte(test))
 		if err == nil {
 			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) succeeded and returned %q", i, test, out)
 		} else {
 			t.Logf("test case %d PASSED: decode_raw_unicode_escaped(%q) failed and returned %v", i, test, err)
 		}
 	}
+
+	u.PreserveInvalidSurrogates(true)
+	for i, test := range tests {
+		out, err := u.decode_raw_unicode_escaped([]byte(test))
+		if err == nil {
+			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) succeeded and returned %q", i, test, out)
+		} else {
+			t.Logf("test case %d PASSED: decode_raw_unicode_escaped(%q) failed and returned %v", i, test, err)
+		}
+	}
+
 }
 
 func TestPickledRawUnicodeEscape(t *testing.T) {
@@ -123,6 +136,26 @@ func TestPickledRawUnicodeEscape(t *testing.T) {
 			} else {
 				t.Logf("test case %d PASS: (%T) % x (%q) -> JSON %s", i, obj, obj, obj, b.String())
 			}
+		}
+	}
+}
+
+func TestPickledRawUnicodeEscapePreserveSP(t *testing.T) {
+	// retest the surrogate pair case with conversion disabled
+	in, _ := hex.DecodeString("565c75643830305c75646335330a70300a2e") // pickle.dumps('\ud800\udc53', 0).hex()
+	u := NewUnpickler(in)
+	u.ConvertSurrogatePairs(false)
+	obj, err := u.Load()
+	if err != nil {
+		t.Errorf("surrogate pair test case FAIL: %v", err)
+	} else {
+		var b strings.Builder
+		obj.JSON(&b)
+		expect := `"\ud800\udc53"`
+		if b.String() != expect {
+			t.Errorf("surrogate pair test case FAIL: unexpected JSON value (%T) % x (%q) -> JSON %s (expected %s)", obj, obj, obj, b.String(), expect)
+		} else {
+			t.Logf("surrogate pair test case PASS: (%T) % x (%q) -> JSON %s", obj, obj, obj, b.String())
 		}
 	}
 }
