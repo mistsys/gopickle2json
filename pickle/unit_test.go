@@ -41,7 +41,7 @@ func TestDecodeRawUnicodeEscape(t *testing.T) {
 		} else if string(out) != test[0] {
 			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) returned %q; expected %q", i, test[1], out, test[0])
 		} else {
-			t.Logf("test case %d PASSED: decode_raw_unicode_escaped(%q) returned %q", i, test[1], out)
+			t.Logf("test case %d passed: decode_raw_unicode_escaped(%q) returned %q", i, test[1], out)
 		}
 	}
 }
@@ -75,17 +75,35 @@ func TestInvalidDecodeRawUnicodeEscape(t *testing.T) {
 		if err == nil {
 			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) succeeded and returned %q", i, test, out)
 		} else {
-			t.Logf("test case %d PASSED: decode_raw_unicode_escaped(%q) failed and returned %v", i, test, err)
+			t.Logf("test case %d passed: decode_raw_unicode_escaped(%q) failed and returned %v", i, test, err)
 		}
 	}
+}
 
-	u.PreserveInvalidSurrogates(true)
+func TestBitEqualDecodeRawUnicodeEscape(t *testing.T) {
+	tests := []string{ // raw-unicode-escaped inputs that should pass if BitEqualStrings is enabled
+		`\ud800\ud900`,
+		`\ud800ud900`,
+		`\ud800\U0000dc00`,
+		`\ud800\ue000`,
+		`\udc00\ud800`,
+		`\ud800`,
+		`\udbff`,
+		`\udc00`,
+		`\udfff`,
+		`\ud836\udc00`,
+		`\ud836\udfff`,
+		`\ud837\udc00`,
+		`\ud837\udfff`,
+	}
+	u := NewUnpickler(nil)
+	u.BitEqualStrings(true)
 	for i, test := range tests {
 		out, err := u.decode_raw_unicode_escaped([]byte(test))
-		if err == nil {
-			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) succeeded and returned %q", i, test, out)
+		if err != nil {
+			t.Errorf("test case %d FAILED: decode_raw_unicode_escaped(%q) failed and returned %v", i, test, err)
 		} else {
-			t.Logf("test case %d PASSED: decode_raw_unicode_escaped(%q) failed and returned %v", i, test, err)
+			t.Logf("test case %d passed: decode_raw_unicode_escaped(%q) succeeded and returned %q", i, test, out)
 		}
 	}
 
@@ -144,7 +162,7 @@ func TestPickledRawUnicodeEscapePreserveSP(t *testing.T) {
 	// retest the surrogate pair case with conversion disabled
 	in, _ := hex.DecodeString("565c75643830305c75646335330a70300a2e") // pickle.dumps('\ud800\udc53', 0).hex()
 	u := NewUnpickler(in)
-	u.ConvertSurrogatePairs(false)
+	u.BitEqualStrings(true)
 	obj, err := u.Load()
 	if err != nil {
 		t.Errorf("surrogate pair test case FAIL: %v", err)
@@ -185,7 +203,7 @@ func TestInvalidPickledRawUnicodeEscape(t *testing.T) {
 			t.Errorf("test case %d (%x) should have FAILED but returned %v instead", i, test.r, obj)
 			continue
 		}
-		t.Logf("test case %d (%x) PASSED by returning error %v", i, test.r, err)
+		t.Logf("test case %d (%x) passed by returning error %v", i, test.r, err)
 	}
 }
 
