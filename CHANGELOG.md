@@ -6,7 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.2 - 2026-11-13
+## [0.4.3] - 2026-11-16
+### Changed
+- Support converting UTF-16 surrogate pairs in pickled strings into UTF-8
+- Avoid producing invalid UTF-8 in JSON. BitEqualStrings(true) allows non-UTF-8.
+
+## [0.4.2] - 2026-11-13
 ### Fixed
 - fixed stray println in decode_raw_unicode_escaped(), leftover from debugging it.
 
