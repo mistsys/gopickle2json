@@ -30,8 +30,9 @@ func TestDecodeRawUnicodeEscape(t *testing.T) {
 		{"\\\n", `\\\u000a`},
 		{"\\\n", `\\\u000A`},
 		{"\\\\u000a", `\\\\u000a`},
-		{"abc\n123\\", `abc\ud800\udc0a123\\`},
-		{"\000", `\ud800\udc00`},
+		{"abc\U0001000a123\\", `abc\ud800\udc0a123\\`},
+		{"\U00010000", `\ud800\udc00`},
+		{"\U0010ffff", `\udbff\udfff`},
 	}
 	u := NewUnpickler(nil)
 	for i, test := range tests {
@@ -64,10 +65,6 @@ func TestInvalidDecodeRawUnicodeEscape(t *testing.T) {
 		`\udbff`,
 		`\udc00`,
 		`\udfff`,
-		`\ud836\udc00`,
-		`\ud836\udfff`,
-		`\ud837\udc00`,
-		`\ud837\udfff`,
 	}
 	u := NewUnpickler(nil)
 	for i, test := range tests {
@@ -119,7 +116,7 @@ func TestPickledRawUnicodeEscape(t *testing.T) {
 		{"\\n", "565c75303035636e0a70300a2e", `"\\n"`},             // pickle.dumps('\\n', 0).hex()
 		{"\\\n", "565c75303035635c75303030610a70300a2e", `"\\\n"`}, // pickle.dumps('\\\n', 0).hex()
 		// surrogate pairs (b/c python supports them)
-		{"S", "565c75643830305c75646335330a70300a2e", `"S"`}, //pickle.dumps('\ud800\udc53', 0).hex() // a long way of producing "S" (53h)
+		{"\U00010053", "565c75643830305c75646335330a70300a2e", "\"\U00010053\""}, // pickle.dumps('\ud800\udc53', 0).hex() // a long way of producing "S"+0x10000 (10053h)
 		// fffd (the substitution char)
 		{"\ufffd", "565c75666666640a70300a2e", `"\ufffd"`}, // pickle.dumps('\ufffd', protocol=0).hex() // a real fffd rune
 		{"\ufffd\ufffd", "565c75666666645c75666666640a70300a2e", `"\ufffd\ufffd"`},
@@ -161,28 +158,45 @@ func TestPickledRawUnicodeEscape(t *testing.T) {
 			if b.String() != test[2] {
 				t.Errorf("test case %d FAIL: unexpected JSON value (%T) % x (%q) -> JSON %s (expected %s)", i, obj, obj, obj, b.String(), test[2])
 			} else {
-				t.Logf("test case %d PASS: (%T) % x (%q) -> JSON %s", i, obj, obj, obj, b.String())
+				t.Logf("test case %d pass: (%T) % x (%q) -> JSON %s", i, obj, obj, obj, b.String())
 			}
 		}
 	}
 }
 
-func TestPickledRawUnicodeEscapePreserveSP(t *testing.T) {
-	// retest the surrogate pair case with conversion disabled
-	in, _ := hex.DecodeString("565c75643830305c75646335330a70300a2e") // pickle.dumps('\ud800\udc53', 0).hex()
-	u := NewUnpickler(in)
-	u.BitEqualStrings(true)
-	obj, err := u.Load()
-	if err != nil {
-		t.Errorf("surrogate pair test case FAIL: %v", err)
-	} else {
-		var b strings.Builder
-		obj.JSON(&b)
-		expect := `"\ud800\udc53"`
-		if b.String() != expect {
-			t.Errorf("surrogate pair test case FAIL: unexpected JSON value (%T) % x (%q) -> JSON %s (expected %s)", obj, obj, obj, b.String(), expect)
+func TestPickledRawUnicodeEscapeWithBitEqualEnabled(t *testing.T) {
+	// retest with surrogate pair conversion disabled
+	tests := [][3]string{ // UTF-8, pickle, JSON
+		// 8, 16 and 32-bit unicode
+		{"\"café'\t🐍…\\\n", "5622636166e927095c5530303031663430645c75323032365c75303035635c75303030610a70300a2e", `"\"café'\t🐍…\\\n"`}, // pickle.dumps('"café\'\t🐍…\\\n', 0).hex()
+		// backslashes
+		{"\\", "565c75303035630a70300a2e", `"\\"`},                 // pickle.dumps('\\', 0).hex()
+		{"\n", "565c75303030610a70300a2e", `"\n"`},                 // pickle.dumps('\n', 0).hex()
+		{"\\n", "565c75303035636e0a70300a2e", `"\\n"`},             // pickle.dumps('\\n', 0).hex()
+		{"\\\n", "565c75303035635c75303030610a70300a2e", `"\\\n"`}, // pickle.dumps('\\\n', 0).hex()
+		// surrogate pairs (b/c python supports them)
+		{"\U00010053", "565c75643830305c75646335330a70300a2e", `"\ud800\udc53"`}, // pickle.dumps('\ud800\udc53', 0).hex()
+		{"\ufffd", "565c75643830300a70300a2e", `"\ud800"`},                       // pickle.dumps('\ud800', protocol=0).hex() // unpaired surrogate
+		// weird chars
+		{"\ufffd", "565c75666666640a70300a2e", `"\ufffd"`}, // pickle.dumps('\ufffd', protocol=0).hex() // a real fffd rune
+	}
+
+	for i, test := range tests {
+		in, _ := hex.DecodeString(test[1])
+		u := NewUnpickler(in)
+		u.BitEqualStrings(true)
+		obj, err := u.Load()
+		if err != nil {
+			t.Errorf("test case %d FAIL: %v", i, err)
 		} else {
-			t.Logf("surrogate pair test case PASS: (%T) % x (%q) -> JSON %s", obj, obj, obj, b.String())
+			var b strings.Builder
+			obj.JSON(&b)
+			expect := test[2]
+			if b.String() != expect {
+				t.Errorf("test case %d FAIL: unexpected JSON value (%T) % x (%q) -> JSON %s (expected %s)", i, obj, obj, obj, b.String(), expect)
+			} else {
+				t.Logf("test case %d pass: (%T) % x (%q) -> JSON %s", i, obj, obj, obj, b.String())
+			}
 		}
 	}
 }

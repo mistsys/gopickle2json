@@ -773,11 +773,9 @@ func (u *Unpickler) decode_raw_unicode_escaped(in []byte) (out []byte, err error
 					}
 
 					// recombine the two halfs and continue to process r
-					r = (r&0x3ff)<<10 | (r2 & 0x3ff)
+					r = 1<<16 + r&0x3ff<<10 | r2&0x3ff // Go got precedence and associativity just right :-)
 					in = in[6:]
-					if !utf8.ValidRune(r) { // a surrogate pair can't decode into another surrogate pair (or other invalid UTF-8)
-						return out, fmt.Errorf(`non-UTF-8 rune 0x%x in surrogate pair in raw-unicode-escaped %q`, uint(r), inin)
-					}
+					// note: r cannot itself be invalid unicode since by construction it has to be between 0x10000 and 0x10ffff (0x10000+0xfffff)
 				} else if 0xdc00 <= r && r < 0xe000 {
 					// this is the low half, but it wasn't preceeded by a high half. give a nice error message for this
 					return out, fmt.Errorf(`stray surrogate low half \u%04x in raw-unicode-escaped %q`, uint(r), inin)
