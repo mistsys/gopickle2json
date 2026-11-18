@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-17
+### Fixed
+- Fixed BitEqualStrings(false)
+- Fixed missing +1<<16 when decoding surrogate pairs from protocol=0 pickle strings
+- Fixed converting "\ufffd" to JSON
+
 ## [0.4.3] - 2026-11-16
 ### Changed
 - Support converting UTF-16 surrogate pairs in pickled strings into UTF-8
