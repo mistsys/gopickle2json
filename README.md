@@ -1,6 +1,6 @@
 # GoPickle2JSON
 
-GoPickle is a Go library for loading Python's data serialized with `pickle`
+GoPickle2JSON is a Go library for loading Python's data serialized with `pickle`
 and converting it to JSON. This code is derived from the nlpodyssey/gopickle
 repo (or more precisely, the nsd20463/gopickle fork of the nlpodyssey repo)
 with the pytorch parts removed, and the output changed from Go objects
