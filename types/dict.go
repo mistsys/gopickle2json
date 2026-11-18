@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"iter"
 	"strings"
 )
@@ -12,8 +13,8 @@ import (
 // DictSetter is implemented by any value that exhibits a dict-like behaviour,
 // allowing arbitrary key/value pairs to be set.
 type DictSetter interface {
-	Set(key, value Object)
-	SetMany([]Object) // pairs of key, value
+	Set(key, value Object) error
+	SetMany([]Object) error // pairs of key, value
 	Object
 }
 
@@ -32,19 +33,42 @@ func NewDict(n int, ram *[]Object) *Dict {
 	return d
 }
 
-// Set sets into the Dict the given key/value pair.
-func (d *Dict) Set(key, value Object) {
-	*d = append(*d, key, value)
+// ValidKey returns true if key can be a dict key in JSON.
+// Only some types can be keys. We match python's json.dump(), which permits only str, int, float, bool or None
+func (*Dict) IsValidKey(key Object) bool {
+	switch key.(type) {
+	case String, Int, *Long, Float, Bool, None:
+		return true
+	default:
+		return false
+	}
 }
 
-func (d *Dict) SetMany(kv []Object) {
+// Set sets into the Dict the given key/value pair.
+func (d *Dict) Set(key, value Object) error {
+	if !d.IsValidKey(key) {
+		return fmt.Errorf("type %T can't be a dict key", key)
+	}
+	*d = append(*d, key, value)
+	return nil
+}
+
+func (d *Dict) SetMany(kv []Object) error {
+	// validate the keys
+	for i := 0; i < len(kv); i += 2 {
+		if !d.IsValidKey(kv[i]) {
+			return fmt.Errorf("type %T can't be a dict key", kv[i])
+		}
+	}
+
 	// it's very common to have a single SetMany call which loads all items into an empty dict
 	// so treat that as a special case not requiring any copies
 	if len(*d) == 0 {
 		*d = kv
-		return
+		return nil
 	}
 	*d = append(*d, kv...)
+	return nil
 }
 
 // Range generates an iterator.
@@ -65,6 +89,7 @@ func (d *Dict) JSON(b *strings.Builder) {
 	for i, x := range *d {
 		quoted := false
 		if i&1 == 0 {
+			// key
 			if i != 0 {
 				b.WriteByte(',')
 			}
@@ -80,6 +105,7 @@ func (d *Dict) JSON(b *strings.Builder) {
 				} // else it's going to be quoted already
 			}
 		} else {
+			// value
 			b.WriteByte(':')
 		}
 		x.JSON(b)

@@ -285,3 +285,39 @@ func TestBoolAndNoneDictKeys(t *testing.T) {
 		t.Errorf("unexpected JSON value (%T) (%v) -> JSON %s", obj, obj, b.String())
 	}
 }
+
+func TestEmptydict(t *testing.T) {
+	in, _ := hex.DecodeString("80047d942e") // pickle.dumps({}).hex()
+
+	u := NewUnpickler(in)
+	obj, err := u.Load()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var b strings.Builder
+	obj.JSON(&b)
+	t.Logf("(%T) %v -> JSON %s", obj, obj, b.String())
+
+	if b.String() != `{}` {
+		t.Errorf("unexpected JSON value (%T) (%v) -> JSON %s", obj, obj, b.String())
+	}
+}
+
+func TestTupleDictKey(t *testing.T) {
+	// tuples can be dict keys in python, but not in JSON
+	in, _ := hex.DecodeString("8004950b000000000000007d94884b0186944b02732e") // pickle.dumps({(True,1):2}).hex()
+
+	u := NewUnpickler(in)
+	obj, err := u.Load()
+	if err != nil {
+		t.Logf("tuple dict key correctly failed and returned: %v", err)
+		return
+	}
+
+	var b strings.Builder
+	obj.JSON(&b)
+	t.Logf("(%T) %v -> JSON %s", obj, obj, b.String())
+	t.Errorf("unexpected JSON value (%T) (%v) -> JSON %s", obj, obj, b.String())
+}

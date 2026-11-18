@@ -49,12 +49,12 @@ func NewOrderedDict() *OrderedDict {
 
 // Set sets into the OrderedDict the given key/value pair. If the key does not
 // exist yet, the new pair is positioned at the end (back) of the OrderedDict.
-func (o *OrderedDict) Set(k, v Object) {
-	(*Dict)(o).Set(k, v)
+func (o *OrderedDict) Set(k, v Object) error {
+	return (*Dict)(o).Set(k, v)
 }
 
-func (o *OrderedDict) SetMany(kv []Object) {
-	(*Dict)(o).SetMany(kv)
+func (o *OrderedDict) SetMany(kv []Object) error {
+	return (*Dict)(o).SetMany(kv)
 }
 
 func (o *OrderedDict) JSON(b *strings.Builder) {

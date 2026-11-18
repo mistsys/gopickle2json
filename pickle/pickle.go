@@ -1061,7 +1061,10 @@ func loadDict(u *Unpickler) error {
 	itemsLen := len(items)
 	d := types.NewDict(itemsLen/2, u.alloc_dram())
 	for i := 0; i < itemsLen-1; i += 2 {
-		d.Set(items[i], items[i+1])
+		err = d.Set(items[i], items[i+1])
+		if err != nil {
+			return err
+		}
 	}
 	u.append(d)
 	return nil
@@ -1481,8 +1484,7 @@ func loadSetItem(u *Unpickler) error {
 	if !dictOk {
 		return errors.New("SETITEM requires DictSetter")
 	}
-	dict.Set(key, value)
-	return nil
+	return dict.Set(key, value)
 }
 
 // modify dict by adding topmost key+value pairs
@@ -1499,8 +1501,7 @@ func loadSetItems(u *Unpickler) error {
 	if !dictOk {
 		return errors.New("SETITEMS requires DictSetter")
 	}
-	dict.SetMany(items)
-	return nil
+	return dict.SetMany(items)
 }
 
 // modify set by adding topmost stack items
