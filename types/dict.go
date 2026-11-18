@@ -69,7 +69,7 @@ func (d *Dict) JSON(b *strings.Builder) {
 				b.WriteByte(',')
 			}
 			switch xx := x.(type) {
-			case Int, *Long:
+			case Int, *Long, Bool, None:
 				// JSON requires quotes around non-string keys
 				b.WriteByte('"')
 				quoted = true

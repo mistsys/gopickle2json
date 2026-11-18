@@ -266,3 +266,22 @@ func TestIntDictKeys(t *testing.T) {
 		t.Errorf("unexpected JSON value (%T) % x (%v) -> JSON %s", obj, obj, obj, b.String())
 	}
 }
+
+func TestBoolAndNoneDictKeys(t *testing.T) {
+	in, _ := hex.DecodeString("8004950e000000000000007d9428884b01894b024e4b03752e") // pickle.dumps({True:1,False:2,None:3}).hex()
+
+	u := NewUnpickler(in)
+	obj, err := u.Load()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var b strings.Builder
+	obj.JSON(&b)
+	t.Logf("(%T) %v -> JSON %s", obj, obj, b.String())
+
+	if b.String() != `{"true":1,"false":2,"null":3}` {
+		t.Errorf("unexpected JSON value (%T) (%v) -> JSON %s", obj, obj, b.String())
+	}
+}
