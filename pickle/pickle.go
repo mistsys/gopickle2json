@@ -231,7 +231,7 @@ func (u *Unpickler) append(element types.Object) {
 
 func (u *Unpickler) stackLast() (types.Object, error) {
 	if len(u.stack) == 0 {
-		return nil, fmt.Errorf("the stack is empty")
+		return nil, errors.New("the stack is empty")
 	}
 	return u.stack[len(u.stack)-1], nil
 }
@@ -247,7 +247,7 @@ func (u *Unpickler) stackPop() (types.Object, error) {
 
 func (u *Unpickler) metaStackLast() ([]types.Object, error) {
 	if len(u.metaStack) == 0 {
-		return nil, fmt.Errorf("the meta stack is empty")
+		return nil, errors.New("the meta stack is empty")
 	}
 	return u.metaStack[len(u.metaStack)-1], nil
 }
@@ -390,7 +390,7 @@ func loadFrame(u *Unpickler) error {
 // push persistent object; id is taken from string arg
 func loadPersId(u *Unpickler) error {
 	if u.PersistentLoad == nil {
-		return fmt.Errorf("unsupported persistent ID encountered")
+		return errors.New("unsupported persistent ID encountered")
 	}
 	line, err := u.readLineBytes()
 	if err != nil {
@@ -407,7 +407,7 @@ func loadPersId(u *Unpickler) error {
 // push persistent object; id is taken from stack
 func loadBinPersId(u *Unpickler) error {
 	if u.PersistentLoad == nil {
-		return fmt.Errorf("unsupported persistent ID encountered")
+		return errors.New("unsupported persistent ID encountered")
 	}
 	pid, err := u.stackPop()
 	if err != nil {
@@ -499,7 +499,7 @@ func loadLong(u *Unpickler) error {
 	}
 	n := len(sub)
 	if n == 0 {
-		return fmt.Errorf("invalid long data")
+		return errors.New("invalid long data")
 	}
 	if sub[n-1] == 'L' {
 		sub = sub[:n-1]
@@ -512,7 +512,7 @@ func loadLong(u *Unpickler) error {
 	if ne, isNe := err.(*strconv.NumError); isNe && ne.Err == strconv.ErrRange {
 		bi, ok := new(big.Int).SetString(sub, 10)
 		if !ok {
-			return fmt.Errorf("invalid long data")
+			return errors.New("invalid long data")
 		}
 		u.append(types.NewLong(bi))
 		return nil
@@ -543,7 +543,7 @@ func loadLong4(u *Unpickler) error {
 	}
 	length := decodeInt32(buf)
 	if length < 0 {
-		return fmt.Errorf("LONG pickle has negative byte count")
+		return errors.New("LONG pickle has negative byte count")
 	}
 	data, err := u.read(length)
 	if err != nil {
@@ -619,7 +619,7 @@ func loadString(u *Unpickler) error {
 	}
 	// Strip outermost quotes
 	if !isQuotedString(data) {
-		return fmt.Errorf("the STRING opcode argument must be quoted")
+		return errors.New("the STRING opcode argument must be quoted")
 	}
 	data = data[1 : len(data)-1] // remove the quotes
 	u.append(u.NewString(data))
@@ -639,7 +639,7 @@ func loadBinString(u *Unpickler) error {
 	}
 	length := decodeInt32(buf)
 	if length < 0 {
-		return fmt.Errorf("BINSTRING pickle has negative byte count")
+		return errors.New("BINSTRING pickle has negative byte count")
 	}
 	data, err := u.read(length)
 	if err != nil {
@@ -838,7 +838,7 @@ func loadBinUnicode8(u *Unpickler) error {
 	}
 	length := binary.LittleEndian.Uint64(buf)
 	if length > math.MaxInt64 {
-		return fmt.Errorf("BINUNICODE8 exceeds system's maximum size")
+		return errors.New("BINUNICODE8 exceeds system's maximum size")
 	}
 	buf, err = u.read(int(length))
 	if err != nil {
@@ -856,7 +856,7 @@ func loadBinBytes8(u *Unpickler) error {
 	}
 	length := binary.LittleEndian.Uint64(buf)
 	if length > math.MaxInt64 {
-		return fmt.Errorf("BINBYTES8 exceeds system's maximum size")
+		return errors.New("BINBYTES8 exceeds system's maximum size")
 	}
 	buf, err = u.read(int(length))
 	if err != nil {
@@ -874,7 +874,7 @@ func loadByteArray8(u *Unpickler) error {
 	}
 	length := binary.LittleEndian.Uint64(buf)
 	if length > math.MaxInt64 {
-		return fmt.Errorf("BYTEARRAY8 exceeds system's maximum size")
+		return errors.New("BYTEARRAY8 exceeds system's maximum size")
 	}
 	buf, err = u.read(int(length))
 	if err != nil {
@@ -887,7 +887,7 @@ func loadByteArray8(u *Unpickler) error {
 // push next out-of-band buffer
 func loadNextBuffer(u *Unpickler) error {
 	if u.NextBuffer == nil {
-		return fmt.Errorf("pickle stream refers to out-of-band data but NextBuffer was not given")
+		return errors.New("pickle stream refers to out-of-band data but NextBuffer was not given")
 	}
 	buf, err := u.NextBuffer()
 	if err != nil {
@@ -1101,7 +1101,7 @@ func loadObj(u *Unpickler) error {
 		return err
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("OBJ class missing")
+		return errors.New("OBJ class missing")
 	}
 	class := args[0]
 	args = args[1:]
@@ -1135,7 +1135,7 @@ func loadNewObj(u *Unpickler) error {
 	}
 	argsTuple, argsOk := args.(types.Tuple)
 	if !argsOk {
-		return fmt.Errorf("NEWOBJ args must be *Tuple")
+		return errors.New("NEWOBJ args must be *Tuple")
 	}
 
 	rawClass, err := u.stackPop()
@@ -1168,7 +1168,7 @@ func loadNewObjEx(u *Unpickler) error {
 	}
 	argsTuple, argsOk := args.(types.Tuple)
 	if !argsOk {
-		return fmt.Errorf("NEWOBJ_EX args must be *Tuple")
+		return errors.New("NEWOBJ_EX args must be *Tuple")
 	}
 
 	rawClass, err := u.stackPop()
@@ -1177,7 +1177,7 @@ func loadNewObjEx(u *Unpickler) error {
 	}
 	class, classOk := rawClass.(types.PyNewable)
 	if !classOk {
-		return fmt.Errorf("NEWOBJ_EX requires a PyNewable object")
+		return errors.New("NEWOBJ_EX requires a PyNewable object")
 	}
 
 	allArgs := []types.Object(argsTuple)
@@ -1243,7 +1243,7 @@ func loadStackGlobal(u *Unpickler) error {
 // push object from extension registry; 1-byte index
 func opExt1(u *Unpickler) error {
 	if u.GetExtension == nil {
-		return fmt.Errorf("unsupported extension code encountered")
+		return errors.New("unsupported extension code encountered")
 	}
 	i, err := u.readOne()
 	if err != nil {
@@ -1260,7 +1260,7 @@ func opExt1(u *Unpickler) error {
 // ditto, but 2-byte index
 func opExt2(u *Unpickler) error {
 	if u.GetExtension == nil {
-		return fmt.Errorf("unsupported extension code encountered")
+		return errors.New("unsupported extension code encountered")
 	}
 	buf, err := u.read(2)
 	if err != nil {
@@ -1278,7 +1278,7 @@ func opExt2(u *Unpickler) error {
 // ditto, but 4-byte index
 func opExt4(u *Unpickler) error {
 	if u.GetExtension == nil {
-		return fmt.Errorf("unsupported extension code encountered")
+		return errors.New("unsupported extension code encountered")
 	}
 	buf, err := u.read(4)
 	if err != nil {
@@ -1301,7 +1301,7 @@ func loadReduce(u *Unpickler) error {
 	}
 	argsTuple, argsOk := args.(types.Tuple)
 	if !argsOk {
-		return fmt.Errorf("REDUCE args must be *Tuple")
+		return errors.New("REDUCE args must be *Tuple")
 	}
 
 	function, err := u.stackPop()
@@ -1439,7 +1439,7 @@ func loadAppend(u *Unpickler) error {
 	}
 	list, listOk := obj.(types.ListAppender)
 	if !listOk {
-		return fmt.Errorf("APPEND requires ListAppender")
+		return errors.New("APPEND requires ListAppender")
 	}
 	list.Append(value)
 	return nil
@@ -1457,7 +1457,7 @@ func loadAppends(u *Unpickler) error {
 	}
 	list, listOk := obj.(types.ListAppender)
 	if !listOk {
-		return fmt.Errorf("APPEND requires List")
+		return errors.New("APPEND requires List")
 	}
 	list.AppendMany(items)
 	return nil
@@ -1479,7 +1479,7 @@ func loadSetItem(u *Unpickler) error {
 	}
 	dict, dictOk := obj.(types.DictSetter)
 	if !dictOk {
-		return fmt.Errorf("SETITEM requires DictSetter")
+		return errors.New("SETITEM requires DictSetter")
 	}
 	dict.Set(key, value)
 	return nil
@@ -1497,7 +1497,7 @@ func loadSetItems(u *Unpickler) error {
 	}
 	dict, dictOk := obj.(types.DictSetter)
 	if !dictOk {
-		return fmt.Errorf("SETITEMS requires DictSetter")
+		return errors.New("SETITEMS requires DictSetter")
 	}
 	dict.SetMany(items)
 	return nil
@@ -1515,7 +1515,7 @@ func loadAddItems(u *Unpickler) error {
 	}
 	set, setOk := obj.(types.SetAdder)
 	if !setOk {
-		return fmt.Errorf("ADDITEMS requires SetAdder")
+		return errors.New("ADDITEMS requires SetAdder")
 	}
 	set.AddMany(items)
 	return nil
@@ -1558,7 +1558,7 @@ func loadBuild(u *Unpickler) error {
 			for key, val := range dict.Range() {
 				key, ok := key.(types.String)
 				if !ok {
-					return fmt.Errorf("BUILD requires string slot state keys")
+					return errors.New("BUILD requires string slot state keys")
 				}
 				err := settable.PySetAttr(key.String(), val)
 				if err != nil {

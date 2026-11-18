@@ -22,8 +22,7 @@ var _ Callable = &OrderedDictClass{}
 // No arguments are supported.
 func (*OrderedDictClass) Call(args ...Object) (Object, error) {
 	if len(args) != 0 {
-		return nil, fmt.Errorf(
-			"OrderedDictClass.Call args not supported: %#v", args)
+		return nil, fmt.Errorf("OrderedDictClass.Call args not supported: %#v", args)
 	}
 	return NewOrderedDict(), nil
 }

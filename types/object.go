@@ -5,6 +5,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -16,14 +17,13 @@ var _ PyNewable = &ObjectClass{}
 
 func (o *ObjectClass) PyNew(args ...Object) (Object, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("ObjectClass.PyNew called with no arguments")
+		return nil, errors.New("ObjectClass.PyNew called with no arguments")
 	}
 	switch class := args[0].(type) {
 	case PyNewable:
 		return class.PyNew()
 	default:
-		return nil, fmt.Errorf(
-			"ObjectClass.PyNew unprocessable args: %#v", args)
+		return nil, fmt.Errorf("ObjectClass.PyNew unprocessable args: %#v", args)
 	}
 }
 
