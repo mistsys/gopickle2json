@@ -120,6 +120,15 @@ func TestPickledRawUnicodeEscape(t *testing.T) {
 		{"\\\n", "565c75303035635c75303030610a70300a2e", `"\\\n"`}, // pickle.dumps('\\\n', 0).hex()
 		// surrogate pairs (b/c python supports them)
 		{"S", "565c75643830305c75646335330a70300a2e", `"S"`}, //pickle.dumps('\ud800\udc53', 0).hex() // a long way of producing "S" (53h)
+		// fffd (the substitution char)
+		{"\ufffd", "565c75666666640a70300a2e", `"\ufffd"`}, // pickle.dumps('\ufffd', protocol=0).hex() // a real fffd rune
+		{"\ufffd\ufffd", "565c75666666645c75666666640a70300a2e", `"\ufffd\ufffd"`},
+		{"\ufffd\ufffd\ufffd", "565c75666666645c75666666645c75666666640a70300a2e", `"\ufffd\ufffd\ufffd"`},
+		{"\ufffd\ufffd\ufffd\ufffd", "565c75666666645c75666666645c75666666645c75666666640a70300a2e", `"\ufffd\ufffd\ufffd\ufffd"`},
+		{"\ufffd\ufffd\ufffd\ufffd", "80049510000000000000008c0cefbfbdefbfbdefbfbdefbfbd942e", `"\ufffd\ufffd\ufffd\ufffd"`}, // protocol=5 (BINUNICODE) encoding
+		{"\ufffd\ufffd\ufffd", "8004950d000000000000008c09efbfbdefbfbdefbfbd942e", `"\ufffd\ufffd\ufffd"`},
+		{"\ufffd\ufffd", "8004950a000000000000008c06efbfbdefbfbd942e", `"\ufffd\ufffd"`},
+		{"\ufffd", "80049507000000000000008c03efbfbd942e", `"\ufffd"`},
 	}
 
 	for i, test := range tests {

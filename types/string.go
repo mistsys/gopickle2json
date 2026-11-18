@@ -38,7 +38,7 @@ func (s *EscapedString) JSON(b *strings.Builder) {
 	// the rule in JSON in that JSON text must be UTF-8, or if you must, use unicode \uxxxx notation.
 	// only ascii control chars (<0x20), \ and " need to be escaped, and some control chars can use \[bfnrt/] instead of \u00xx encoding.
 	// (why / might need to be escaped I don't know, but it's there on json.org's flow chart. The code in stdlib doesn't escape it, so I won't either)
-	invalid_i := -1
+	invalid_i := -3
 	for i, r := range string(*s) {
 		switch r {
 		case 0xfffd: // the unicode substition char. Probably invalid UTF-8 generated when range sees surrogate pairs and other garbage
