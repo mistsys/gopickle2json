@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-11-17
+### Added
+- support bool and None dict keys like python's json.dump() does.
+### Changed
+- python types which cannot be JSON dict keys are caught and return an error,
+  rather than generating invalid JSON.
+
 ## [0.4.4] - 2026-11-17
 ### Fixed
 - Fixed BitEqualStrings(false)
