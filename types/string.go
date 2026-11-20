@@ -39,6 +39,7 @@ func (s *EscapedString) JSON(b *strings.Builder) {
 	// only ascii control chars (<0x20), \ and " need to be escaped, and some control chars can use \[bfnrt/] instead of \u00xx encoding.
 	// (why / might need to be escaped I don't know, but it's there on json.org's flow chart. The code in stdlib doesn't escape it, so I won't either)
 	invalid_i := -3
+	var buf []byte // nil, or reuseable temp buffer used in odd cases
 	for i, r := range string(*s) {
 		switch r {
 		case 0xfffd: // the unicode substition char. Probably invalid UTF-8 generated when range sees surrogate pairs and other garbage
@@ -46,11 +47,11 @@ func (s *EscapedString) JSON(b *strings.Builder) {
 				// some 3-byte UTF-8 that range didn't like. encode it using \u####
 				r = rune((*s)[i]&0x0f)<<12 | rune((*s)[i+1]&0x3f)<<6 | rune((*s)[i+2]&0x3f)
 				b.WriteString("\\u")
-				h := strconv.FormatUint(uint64(r), 16)
-				for j := len(h); j < 4; j++ {
+				buf = strconv.AppendUint(buf[:0], uint64(r), 16)
+				for j := len(buf); j < 4; j++ {
 					b.WriteByte('0')
 				}
-				b.WriteString(h)
+				b.Write(buf)
 				invalid_i = i
 			} else if i > invalid_i+2 {
 				// encode a literal fffd

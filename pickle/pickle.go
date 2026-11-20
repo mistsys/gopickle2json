@@ -48,7 +48,7 @@ func NewUnpickler(in []byte) Unpickler {
 	}
 }
 
-// BitEqualStrings configures the Unpickled to copy BINSTRING and BINUNICODE and similiar pickled data straight into JSON
+// BitEqualStrings configures the Unpickler to copy BINSTRING and BINUNICODE and similiar pickled data straight into JSON
 // without checking it for UTF-8 validity. After unescaping the JSON string you should hold the same bytes as was in the pickled data.
 func (u *Unpickler) BitEqualStrings(enable bool) {
 	u.bitequal_strings = enable

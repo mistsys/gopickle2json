@@ -177,6 +177,9 @@ func TestPickledRawUnicodeEscapeWithBitEqualEnabled(t *testing.T) {
 		// surrogate pairs (b/c python supports them)
 		{"\U00010053", "565c75643830305c75646335330a70300a2e", `"\ud800\udc53"`}, // pickle.dumps('\ud800\udc53', 0).hex()
 		{"\ufffd", "565c75643830300a70300a2e", `"\ud800"`},                       // pickle.dumps('\ud800', protocol=0).hex() // unpaired surrogate
+		{"\ufffd", "80049507000000000000008c03eda1b3942e", `"\ud873"`},           // pickle.dumps('\ud873', 5).hex() // same, in binary form
+		{"\ufffd", "80059507000000000000008c03edb39e942e", `"\udcde"`},           // pickle.dumps('\udcde', 5).hex()
+
 		// weird chars
 		{"\ufffd", "565c75666666640a70300a2e", `"\ufffd"`}, // pickle.dumps('\ufffd', protocol=0).hex() // a real fffd rune
 	}
