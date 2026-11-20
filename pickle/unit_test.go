@@ -126,6 +126,8 @@ func TestPickledRawUnicodeEscape(t *testing.T) {
 		{"\ufffd\ufffd\ufffd", "8004950d000000000000008c09efbfbdefbfbdefbfbd942e", `"\ufffd\ufffd\ufffd"`},
 		{"\ufffd\ufffd", "8004950a000000000000008c06efbfbdefbfbd942e", `"\ufffd\ufffd"`},
 		{"\ufffd", "80049507000000000000008c03efbfbd942e", `"\ufffd"`},
+		{"\\udcd", "565c7530303563756463640a70300a2e", `"\\udcd"`},         // pickle.dumps('\\udcd', 0).hex() // not a \u code at all
+		{"\\udcd", "80059509000000000000008c055c75646364942e", `"\\udcd"`}, // pickle.dumps('\\udcd', 5).hex()
 	}
 
 	for i, test := range tests {
@@ -178,10 +180,14 @@ func TestPickledRawUnicodeEscapeWithBitEqualEnabled(t *testing.T) {
 		{"\U00010053", "565c75643830305c75646335330a70300a2e", `"\ud800\udc53"`}, // pickle.dumps('\ud800\udc53', 0).hex()
 		{"\ufffd", "565c75643830300a70300a2e", `"\ud800"`},                       // pickle.dumps('\ud800', protocol=0).hex() // unpaired surrogate
 		{"\ufffd", "80049507000000000000008c03eda1b3942e", `"\ud873"`},           // pickle.dumps('\ud873', 5).hex() // same, in binary form
+		{"\ufffd", "565c75646364650a70300a2e", `"\udcde"`},                       // pickle.dumps('\udcde', 0).hex()
 		{"\ufffd", "80059507000000000000008c03edb39e942e", `"\udcde"`},           // pickle.dumps('\udcde', 5).hex()
 
 		// weird chars
-		{"\ufffd", "565c75666666640a70300a2e", `"\ufffd"`}, // pickle.dumps('\ufffd', protocol=0).hex() // a real fffd rune
+		{"\ufffd", "565c75666666640a70300a2e", `"\ufffd"`},                                           // pickle.dumps('\ufffd', protocol=0).hex() // a real fffd rune
+		{"\ufffd", "80059507000000000000008c03efbfbd942e", `"\ufffd"`},                               // pickle.dumps('\ufffd', 5).hex() // a real fffd rune
+		{"\ufffdabc\ufffd", "565c75666666646162635c75666666640a70300a2e", `"\ufffdabc\ufffd"`},       // pickle.dumps('\ufffdabc\ufffd', protocol=0).hex()
+		{"\ufffdabc\ufffd", "8005950d000000000000008c09efbfbd616263efbfbd942e", `"\ufffdabc\ufffd"`}, // pickle.dumps('\ufffdabc\ufffd', 5).hex()
 	}
 
 	for i, test := range tests {
