@@ -21,9 +21,15 @@ func (f Float) JSON(b *strings.Builder) {
 	dst = strconv.AppendFloat(dst, float64(f), 'G', -1, 64)
 	if f.NeedsQuotes() {
 		// JSON spec doesn't allow NaN, +Inf and -Inf as float. the convention is to escape them as strings
-		dst = append(dst, '"', 0)
-		copy(dst[1:], dst)
-		dst[0] = '"'
+		// In addition, python3 json.dumps() encodes +Inf as "Infinity" and -Inf as "-Infinity".
+		switch {
+		case math.IsInf(float64(f), 1):
+			dst = append(dst[:0], `"Infinity"`...)
+		case math.IsInf(float64(f), -1):
+			dst = append(dst[:0], `"-Infinity"`...)
+		default:
+			dst = append(dst[:0], `"NaN"`...)
+		}
 	}
 	b.Write(dst)
 }

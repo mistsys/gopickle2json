@@ -262,7 +262,7 @@ func TestIntDictKeys(t *testing.T) {
 	obj.JSON(&b)
 	t.Logf("(%T) %v -> JSON %s", obj, obj, b.String())
 
-	if b.String() != `{"1":"one","2":"two.zero","3.14":3.14,"+Inf":"Inf","NaN":"NaN"}` {
+	if b.String() != `{"1":"one","2":"two.zero","3.14":3.14,"Infinity":"Inf","NaN":"NaN"}` {
 		t.Errorf("unexpected JSON value (%T) % x (%v) -> JSON %s", obj, obj, obj, b.String())
 	}
 }
