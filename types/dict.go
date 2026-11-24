@@ -55,10 +55,14 @@ func (d *Dict) Set(key, value Object) error {
 
 func (d *Dict) SetMany(kv []Object) error {
 	// validate the keys
-	for i := 0; i < len(kv); i += 2 {
+	var i int
+	for i = 0; i < len(kv); i += 2 {
 		if !d.IsValidKey(kv[i]) {
 			return fmt.Errorf("type %T can't be a dict key", kv[i])
 		}
+	}
+	if i != len(kv) { // only happens of len(kv) is odd
+		return fmt.Errorf("dict key without matching value")
 	}
 
 	// it's very common to have a single SetMany call which loads all items into an empty dict
