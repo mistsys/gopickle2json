@@ -57,9 +57,9 @@ func (s *EscapedString) JSON(b *strings.Builder) {
 				// encode a literal fffd
 				b.WriteString("\\ufffd")
 			} // else it's the other 2 bytes of the invalid UTF-8 3-byte sequence
-		case '"':
+		case '"', '\'': // python json.dump escapes ', despite it not being necessary
 			b.WriteByte('\\')
-			b.WriteByte('"')
+			b.WriteByte(byte(r))
 		case '\\':
 			b.WriteByte('\\')
 			b.WriteByte('\\')
@@ -83,9 +83,9 @@ func (s *EscapedString) JSON(b *strings.Builder) {
 			b.WriteByte('\\')
 			b.WriteByte('t')
 		default:
-			if r < 0x20 {
+			if r < 0x20 || 0x7f <= r && r <= 0xff { // match python3 json.dump() for the 7f to ff range, and also keep it bit identical in the output
 				b.WriteString("\\u00")
-				b.WriteByte('0' + byte(r>>4))
+				b.WriteByte(hex[r>>4])
 				b.WriteByte(hex[r&0xf])
 			} else {
 				// all other runes, even those >= 0x80, can be themselves. JSON source is UTF-8

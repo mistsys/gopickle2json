@@ -21,6 +21,7 @@ func TestDecodeRawUnicodeEscape(t *testing.T) {
 	tests := [][2]string{ // UTF-8, raw-unicode-escaped
 		{"", ``},
 		{"\\", `\\`},
+		{"\u00ff", "\xff"},
 		{"abc 123", "abc 123"},
 		{"abc\n123", "abc\n123"},
 		{"\n", `\u000a`},
@@ -109,7 +110,7 @@ func TestBitEqualDecodeRawUnicodeEscape(t *testing.T) {
 func TestPickledRawUnicodeEscape(t *testing.T) {
 	tests := [][3]string{ // UTF-8, pickle, JSON
 		// 8, 16 and 32-bit unicode
-		{"\"café'\t🐍…\\\n", "5622636166e927095c5530303031663430645c75323032365c75303035635c75303030610a70300a2e", `"\"café'\t🐍…\\\n"`}, // pickle.dumps('"café\'\t🐍…\\\n', 0).hex()
+		{"\"café'\t🐍…\\\n", "5622636166e927095c5530303031663430645c75323032365c75303035635c75303030610a70300a2e", `"\"caf\u00e9\'\t🐍…\\\n"`}, // pickle.dumps('"café\'\t🐍…\\\n', 0).hex()
 		// backslashes
 		{"\\", "565c75303035630a70300a2e", `"\\"`},                 // pickle.dumps('\\', 0).hex()
 		{"\n", "565c75303030610a70300a2e", `"\n"`},                 // pickle.dumps('\n', 0).hex()
@@ -170,7 +171,8 @@ func TestPickledRawUnicodeEscapeWithBitEqualEnabled(t *testing.T) {
 	// retest with surrogate pair conversion disabled
 	tests := [][3]string{ // UTF-8, pickle, JSON
 		// 8, 16 and 32-bit unicode
-		{"\"café'\t🐍…\\\n", "5622636166e927095c5530303031663430645c75323032365c75303035635c75303030610a70300a2e", `"\"café'\t🐍…\\\n"`}, // pickle.dumps('"café\'\t🐍…\\\n', 0).hex()
+		{"\"café'\t🐍…\\\n", "5622636166e927095c5530303031663430645c75323032365c75303035635c75303030610a70300a2e", `"\"caf\u00e9\'\t🐍…\\\n"`}, // pickle.dumps('"café\'\t🐍…\\\n', 0).hex(); json.dumps('"café\'\t🐍…\\\n') returns '"\\"caf\\u00e9\'\\t\\ud83d\\udc0d\\u2026\\\\\\n"'
+
 		// backslashes
 		{"\\", "565c75303035630a70300a2e", `"\\"`},                 // pickle.dumps('\\', 0).hex()
 		{"\n", "565c75303030610a70300a2e", `"\n"`},                 // pickle.dumps('\n', 0).hex()
@@ -188,6 +190,12 @@ func TestPickledRawUnicodeEscapeWithBitEqualEnabled(t *testing.T) {
 		{"\ufffd", "80059507000000000000008c03efbfbd942e", `"\ufffd"`},                               // pickle.dumps('\ufffd', 5).hex() // a real fffd rune
 		{"\ufffdabc\ufffd", "565c75666666646162635c75666666640a70300a2e", `"\ufffdabc\ufffd"`},       // pickle.dumps('\ufffdabc\ufffd', protocol=0).hex()
 		{"\ufffdabc\ufffd", "8005950d000000000000008c09efbfbd616263efbfbd942e", `"\ufffdabc\ufffd"`}, // pickle.dumps('\ufffdabc\ufffd', 5).hex()
+
+		// 0xff varies by protocol
+		{"\u00ff", "56ff0a70300a2e", `"\u00ff"`},                     // pickle.dumps('\xff', 0).hex()
+		{"\u00ff", "5802000000c3bf71002e", `"\u00ff"`},               // pickle.dumps('\xff', 1).hex()
+		{"\u00ff", "80025802000000c3bf71002e", `"\u00ff"`},           // pickle.dumps('\xff', 2).hex()
+		{"\u00ff", "80059506000000000000008c02c3bf942e", `"\u00ff"`}, // pickle.dumps('\xff', 5).hex()
 	}
 
 	for i, test := range tests {
